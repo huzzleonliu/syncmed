@@ -1,0 +1,54 @@
+services:
+  syncmed-prod:
+    container_name: syncmed
+    # user: "20001:20001"
+    build:
+      context: ./syncmed # 指定构建上下文
+      dockerfile: Dockerfile.prod
+      args:
+        - PROJECT_NAME=syncmed # 需要保证项目名称和cargo.toml中的name一致
+    ports:
+      - "3000:3000"
+    networks:
+      - syncmed-network
+    environment:
+      - PROJECT_NAME=syncmed # 需要保证项目名称和cargo.toml中的name一致
+      - DATABASE_URL=${DATABASE_URL}
+
+  syncmed-dev:
+    container_name: syncmed-dev
+    # user: "20001:20001"
+    build:
+      context: ./syncmed # 指定构建上下文
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3002:3000"
+      - "3001:3001"
+    networks:
+      - syncmed-network
+    volumes:
+      - ./syncmed:/app
+    command: [ "cargo", "leptos", "watch" ]
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+  database:
+    container_name: database
+    image: docker.io/postgres:latest
+    # user: "20002:20002"
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgresql/data:/var/lib/postgresql/data:Z
+      - ./postgresql/initdb:/docker-entrypoint-initdb.d:Z,ro
+      - ./postgresql/run:/var/run/postgresql:Z
+    networks:
+      - syncmed-network
+
+networks:
+  syncmed-network:
+    driver: bridge

@@ -1,0 +1,177 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
+/* Full Radix base palettes: 31 scales x (light + dark). */
+@import "@radix-ui/colors/amber.css";
+@import "@radix-ui/colors/amber-dark.css";
+@import "@radix-ui/colors/blue.css";
+@import "@radix-ui/colors/blue-dark.css";
+@import "@radix-ui/colors/bronze.css";
+@import "@radix-ui/colors/bronze-dark.css";
+@import "@radix-ui/colors/brown.css";
+@import "@radix-ui/colors/brown-dark.css";
+@import "@radix-ui/colors/crimson.css";
+@import "@radix-ui/colors/crimson-dark.css";
+@import "@radix-ui/colors/cyan.css";
+@import "@radix-ui/colors/cyan-dark.css";
+@import "@radix-ui/colors/gold.css";
+@import "@radix-ui/colors/gold-dark.css";
+@import "@radix-ui/colors/grass.css";
+@import "@radix-ui/colors/grass-dark.css";
+@import "@radix-ui/colors/gray.css";
+@import "@radix-ui/colors/gray-dark.css";
+@import "@radix-ui/colors/green.css";
+@import "@radix-ui/colors/green-dark.css";
+@import "@radix-ui/colors/indigo.css";
+@import "@radix-ui/colors/indigo-dark.css";
+@import "@radix-ui/colors/iris.css";
+@import "@radix-ui/colors/iris-dark.css";
+@import "@radix-ui/colors/jade.css";
+@import "@radix-ui/colors/jade-dark.css";
+@import "@radix-ui/colors/lime.css";
+@import "@radix-ui/colors/lime-dark.css";
+@import "@radix-ui/colors/mauve.css";
+@import "@radix-ui/colors/mauve-dark.css";
+@import "@radix-ui/colors/mint.css";
+@import "@radix-ui/colors/mint-dark.css";
+@import "@radix-ui/colors/olive.css";
+@import "@radix-ui/colors/olive-dark.css";
+@import "@radix-ui/colors/orange.css";
+@import "@radix-ui/colors/orange-dark.css";
+@import "@radix-ui/colors/pink.css";
+@import "@radix-ui/colors/pink-dark.css";
+@import "@radix-ui/colors/plum.css";
+@import "@radix-ui/colors/plum-dark.css";
+@import "@radix-ui/colors/purple.css";
+@import "@radix-ui/colors/purple-dark.css";
+@import "@radix-ui/colors/red.css";
+@import "@radix-ui/colors/red-dark.css";
+@import "@radix-ui/colors/ruby.css";
+@import "@radix-ui/colors/ruby-dark.css";
+@import "@radix-ui/colors/sage.css";
+@import "@radix-ui/colors/sage-dark.css";
+@import "@radix-ui/colors/sand.css";
+@import "@radix-ui/colors/sand-dark.css";
+@import "@radix-ui/colors/sky.css";
+@import "@radix-ui/colors/sky-dark.css";
+@import "@radix-ui/colors/slate.css";
+@import "@radix-ui/colors/slate-dark.css";
+@import "@radix-ui/colors/teal.css";
+@import "@radix-ui/colors/teal-dark.css";
+@import "@radix-ui/colors/tomato.css";
+@import "@radix-ui/colors/tomato-dark.css";
+@import "@radix-ui/colors/violet.css";
+@import "@radix-ui/colors/violet-dark.css";
+@import "@radix-ui/colors/yellow.css";
+@import "@radix-ui/colors/yellow-dark.css";
+
+:root,
+.light,
+.light-theme,
+[data-mode="light"],
+.dark,
+.dark-theme,
+[data-mode="dark"] {
+    --custom-background: var(--teal-1);
+    --custom-subtle-background: var(--teal-2);
+    --custom-foreground: var(--teal-12);
+    --custom-primary: var(--teal-9);
+    --custom-primary-foreground: var(--teal-1);
+    --custom-secondary: var(--blue-3);
+    --custom-secondary-foreground: var(--blue-11);
+    --custom-accent: var(--teal-3);
+    --custom-accent-foreground: var(--teal-11);
+    --custom-card: var(--teal-2);
+    --custom-card-foreground: var(--teal-11);
+    --custom-popover: var(--teal-2);
+    --custom-popover-foreground: var(--teal-11);
+    --custom-muted: var(--teal-3);
+    --custom-muted-foreground: var(--teal-11);
+    --custom-destructive: var(--red-9);
+    --custom-border: var(--red-1);
+    --custom-input: var(--teal-6);
+    --custom-ring: var(--teal-7);
+    --custom-chart-1: var(--blue-8);
+    --custom-chart-2: var(--blue-9);
+    --custom-chart-3: var(--blue-10);
+    --custom-chart-4: var(--blue-11);
+    --custom-chart-5: var(--blue-12);
+    --custom-sidebar: var(--teal-2);
+    --custom-sidebar-foreground: var(--teal-11);
+    --custom-sidebar-primary: var(--teal-9);
+    --custom-sidebar-primary-foreground: var(--teal-1);
+    --custom-sidebar-accent: var(--teal-3);
+    --custom-sidebar-accent-foreground: var(--teal-11);
+    --custom-sidebar-border: var(--red-1);
+    --custom-sidebar-ring: var(--teal-7);
+    --custom-background-color: var(--black-5);
+    --custom-semantic-background: #696867;
+    --custom-semantic-border: #898887;
+    --custom-semantic-foreground: var(--white);
+}
+
+@theme inline {
+    --color-custom-background: var(--custom-background);
+    --color-custom-subtle-background: var(--custom-subtle-background);
+    --color-custom-foreground: var(--custom-foreground);
+    --color-custom-card: var(--custom-card);
+    --color-custom-card-foreground: var(--custom-card-foreground);
+    --color-custom-popover: var(--custom-popover);
+    --color-custom-popover-foreground: var(--custom-popover-foreground);
+    --color-custom-primary: var(--custom-primary);
+    --color-custom-primary-foreground: var(--custom-primary-foreground);
+    --color-custom-secondary: var(--custom-secondary);
+    --color-custom-secondary-foreground: var(--custom-secondary-foreground);
+    --color-custom-muted: var(--custom-muted);
+    --color-custom-muted-foreground: var(--custom-muted-foreground);
+    --color-custom-accent: var(--custom-accent);
+    --color-custom-accent-foreground: var(--custom-accent-foreground);
+    --color-custom-destructive: var(--custom-destructive);
+    --color-custom-border: var(--custom-border);
+    --color-custom-input: var(--custom-input);
+    --color-custom-ring: var(--custom-ring);
+    --color-custom-chart-1: var(--custom-chart-1);
+    --color-custom-chart-2: var(--custom-chart-2);
+    --color-custom-chart-3: var(--custom-chart-3);
+    --color-custom-chart-4: var(--custom-chart-4);
+    --color-custom-chart-5: var(--custom-chart-5);
+    --color-custom-sidebar: var(--custom-sidebar);
+    --color-custom-sidebar-foreground: var(--custom-sidebar-foreground);
+    --color-custom-sidebar-primary: var(--custom-sidebar-primary);
+    --color-custom-sidebar-primary-foreground: var(--custom-sidebar-primary-foreground);
+    --color-custom-sidebar-accent: var(--custom-sidebar-accent);
+    --color-custom-sidebar-accent-foreground: var(--custom-sidebar-accent-foreground);
+    --color-custom-sidebar-border: var(--custom-sidebar-border);
+    --color-custom-sidebar-ring: var(--custom-sidebar-ring);
+}
+
+/* 
+颜色名来源：https://daisyui.com/docs/colors/#list-of-all-daisyui-color-names
+*/
+@plugin "daisyui/theme" {
+    name: "syncmed-rdx";
+    default: true;
+
+    --color-primary: var(--custom-primary);
+    --color-primary-content: var(--custom-primary-foreground);
+    --color-secondary: var(--custom-secondary);
+    --color-secondary-content: var(--custom-secondary-foreground);
+    --color-accent: var(--custom-accent);
+    --color-accent-content: var(--custom-accent-foreground);
+    --color-neutral: var(--custom-foreground);
+    --color-neutral-content: var(--custom-background);
+
+    --color-base-100: var(--custom-background);
+    --color-base-200: var(--custom-card);
+    --color-base-300: var(--custom-muted);
+    --color-base-content: var(--custom-foreground);
+
+    --color-info: var(--custom-secondary);
+    --color-info-content: var(--custom-secondary-foreground);
+    --color-success: var(--custom-primary);
+    --color-success-content: var(--custom-primary-foreground);
+    --color-warning: var(--custom-ring);
+    --color-warning-content: var(--custom-foreground);
+    --color-error: var(--custom-destructive);
+    --color-error-content: var(--custom-background);
+}

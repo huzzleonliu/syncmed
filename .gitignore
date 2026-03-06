@@ -1,0 +1,8 @@
+postgresql/
+
+# 用于生成了特定名字的项目的忽略文件
+target/
+node_modules/
+
+**/.env
+.env
