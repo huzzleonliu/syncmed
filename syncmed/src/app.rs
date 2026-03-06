@@ -1,16 +1,12 @@
 use leptos::prelude::*;
 use leptos_meta::*;
-use leptos_router::{
-    components::{FlatRoutes, Route, Router},
-    StaticSegment,
-};
 use leptos_router::components::A;
+use leptos_router::{
+    StaticSegment,
+    components::{FlatRoutes, Route, Router},
+};
 
-
-use crate::pages::math_helper::MathHelper;
-
-use crate::pages::math_helper::MathHelperHistory;
-
+use crate::pages::math_helper::LoginPage;
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     view! {
@@ -40,13 +36,7 @@ pub fn App() -> impl IntoView {
         <Router>
             <FlatRoutes fallback=|| "Page not found.">
                 <Route path=StaticSegment("") view=Home/>
-                <Route path=StaticSegment("math-helper") view=MathHelper/>
-                
-                <Route
-                    path=(StaticSegment("math-helper"), StaticSegment("history"))
-                    view=MathHelperHistory
-                />
-                
+                <Route path=StaticSegment("login") view=LoginPage/>
             </FlatRoutes>
         </Router>
     }
@@ -54,12 +44,12 @@ pub fn App() -> impl IntoView {
 
 #[component]
 fn Home() -> impl IntoView {
-    view!{
+    view! {
         <Title text="Home"/>
-        <div class="bg-gradient-to-tl from-blue-900 to-blue-100 text-white font-mono flex flex-col min-h-screen">
+        <div class="bg-base-100 text-base-content flex flex-col min-h-screen">
             <div class="flex flex-col items-start flex-wrap m-auto w-xl">
-                <h1 class="text-3xl my-3">Welcome to the website</h1>
-                <A href="/math-helper" attr:class="btn btn-primary">Math Helper example</A>
+                <h1 class="text-3xl my-3">"Welcome to SyncMed"</h1>
+                <A href="/login" attr:class="btn btn-primary">"Open login layouts"</A>
             </div>
         </div>
     }

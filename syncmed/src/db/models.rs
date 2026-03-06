@@ -1,6 +1,6 @@
-use diesel::prelude::*;
 use chrono::NaiveDateTime;
-use serde::{Serialize, Deserialize};
+use diesel::prelude::*;
+use serde::{Deserialize, Serialize};
 
 #[derive(Queryable, Selectable)]
 #[diesel(table_name = crate::db::schema::question_log)]
