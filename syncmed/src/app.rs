@@ -6,7 +6,10 @@ use leptos_router::{
     components::{FlatRoutes, Route, Router},
 };
 
-use crate::pages::math_helper::LoginPage;
+use crate::pages::login::LoginPage;
+use crate::pages::medication_reconciliation::MedicationReconciliationPage;
+use crate::pages::patient_information::PatientInformationPage;
+use crate::pages::review_information::ReviewInformationPage;
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     view! {
@@ -37,6 +40,9 @@ pub fn App() -> impl IntoView {
             <FlatRoutes fallback=|| "Page not found.">
                 <Route path=StaticSegment("") view=Home/>
                 <Route path=StaticSegment("login") view=LoginPage/>
+                <Route path=StaticSegment("patient-information") view=PatientInformationPage/>
+                <Route path=StaticSegment("review-information") view=ReviewInformationPage/>
+                <Route path=StaticSegment("medication-reconciliation") view=MedicationReconciliationPage/>
             </FlatRoutes>
         </Router>
     }
