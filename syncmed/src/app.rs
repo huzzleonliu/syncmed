@@ -3,7 +3,7 @@ use leptos_meta::*;
 use leptos_router::components::A;
 use leptos_router::{
     StaticSegment,
-    components::{FlatRoutes, Route, Router},
+    components::{ParentRoute, Route, Router, Routes},
 };
 
 use crate::pages::app::{
@@ -11,7 +11,7 @@ use crate::pages::app::{
     AppConfirmSuccessPage, AppInputPage, AppLoginPage,
 };
 use crate::pages::windows::{
-    WindowsBrowsePatientEntryPage, WindowsCardDetailsPage, WindowsGenerateUrlPage,
+    WindowsBrowsePatientEntryPage, WindowsCardDetailsPage, WindowsGenerateUrlPage, WindowsLayout,
     WindowsLoginPage, WindowsWidgetPage,
 };
 
@@ -41,7 +41,7 @@ pub fn App() -> impl IntoView {
 
     view! {
         <Router>
-            <FlatRoutes fallback=|| "Page not found.">
+            <Routes fallback=|| "Page not found.">
                 <Route path=StaticSegment("") view=Home/>
                 <Route path=(StaticSegment("app"), StaticSegment("login")) view=AppLoginPage/>
                 <Route path=(StaticSegment("app"), StaticSegment("input-page")) view=AppInputPage/>
@@ -50,12 +50,14 @@ pub fn App() -> impl IntoView {
                 <Route path=(StaticSegment("app"), StaticSegment("chat-accessibility")) view=AppChatAccessibilityPage/>
                 <Route path=(StaticSegment("app"), StaticSegment("chat-confirm")) view=AppChatConfirmPage/>
                 <Route path=(StaticSegment("app"), StaticSegment("confirm-success-page")) view=AppConfirmSuccessPage/>
-                <Route path=(StaticSegment("windows"), StaticSegment("widget")) view=WindowsWidgetPage/>
-                <Route path=(StaticSegment("windows"), StaticSegment("login")) view=WindowsLoginPage/>
-                <Route path=(StaticSegment("windows"), StaticSegment("generate-url")) view=WindowsGenerateUrlPage/>
-                <Route path=(StaticSegment("windows"), StaticSegment("browse-patient-entry")) view=WindowsBrowsePatientEntryPage/>
-                <Route path=(StaticSegment("windows"), StaticSegment("card-details")) view=WindowsCardDetailsPage/>
-            </FlatRoutes>
+                <Route path=StaticSegment("widget") view=WindowsWidgetPage/>
+                <ParentRoute path=StaticSegment("windows") view=WindowsLayout>
+                    <Route path=StaticSegment("login") view=WindowsLoginPage/>
+                    <Route path=StaticSegment("generate-url") view=WindowsGenerateUrlPage/>
+                    <Route path=StaticSegment("browse-patient-entry") view=WindowsBrowsePatientEntryPage/>
+                    <Route path=StaticSegment("card-details") view=WindowsCardDetailsPage/>
+                </ParentRoute>
+            </Routes>
         </Router>
     }
 }
@@ -75,11 +77,11 @@ fn Home() -> impl IntoView {
                 <A href="/app/chat-confirm" attr:class="link">"/app/chat-confirm"</A>
                 <A href="/app/confirm-success-page" attr:class="link">"/app/confirm-success-page"</A>
                 <A href="/medical-system" attr:class="link">"/medical-system"</A>
+                <A href="/widget" attr:class="link">"/widget"</A>
                 <A href="/windows/login" attr:class="link">"/windows/login"</A>
                 <A href="/windows/generate-url" attr:class="link">"/windows/generate-url"</A>
                 <A href="/windows/browse-patient-entry" attr:class="link">"/windows/browse-patient-entry"</A>
                 <A href="/windows/card-details" attr:class="link">"/windows/card-details"</A>
-                <A href="/windows/widget" attr:class="link">"/windows/widget"</A>
             </div>
         </div>
     }
