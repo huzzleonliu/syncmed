@@ -75,11 +75,11 @@ fn Home() -> impl IntoView {
                 <A href="/app/chat-confirm" attr:class="link">"/app/chat-confirm"</A>
                 <A href="/app/confirm-success-page" attr:class="link">"/app/confirm-success-page"</A>
                 <A href="/medical-system" attr:class="link">"/medical-system"</A>
-                <A href="/windows/widget" attr:class="link">"/windows/widget"</A>
                 <A href="/windows/login" attr:class="link">"/windows/login"</A>
                 <A href="/windows/generate-url" attr:class="link">"/windows/generate-url"</A>
                 <A href="/windows/browse-patient-entry" attr:class="link">"/windows/browse-patient-entry"</A>
                 <A href="/windows/card-details" attr:class="link">"/windows/card-details"</A>
+                <A href="/windows/widget" attr:class="link">"/windows/widget"</A>
             </div>
         </div>
     }
