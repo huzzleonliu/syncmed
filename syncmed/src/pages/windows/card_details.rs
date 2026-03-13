@@ -6,53 +6,21 @@ use serde::{Deserialize, Serialize};
 #[component]
 pub fn WindowsCardDetailsPage() -> impl IntoView {
     let query = use_query_map();
-    let patient_key_from_query = Memo::new(move |_| {
+    let patient_key = Memo::new(move |_| {
         query
             .get()
             .get("patient-id")
             .unwrap_or_else(String::new)
     });
-    let (effective_patient_key, set_effective_patient_key) = signal(String::new());
-
-    Effect::new(move |_| {
-        let query_key = patient_key_from_query.get();
-        if !query_key.trim().is_empty() {
-            set_effective_patient_key.set(query_key);
-            return;
-        }
-
-        #[cfg(target_arch = "wasm32")]
-        {
-            if let Some(window) = web_sys::window() {
-                if let Ok(Some(storage)) = window.local_storage() {
-                    if let Ok(Some(key)) = storage.get_item("last_patient_key") {
-                        set_effective_patient_key.set(key);
-                        return;
-                    }
-                }
-            }
-        }
-
-        set_effective_patient_key.set(String::new());
-    });
-
-    #[cfg(target_arch = "wasm32")]
-    {
-        Effect::new(move |_| {
-            let key = effective_patient_key.get();
-            if !key.trim().is_empty() {
-                if let Some(window) = web_sys::window() {
-                    if let Ok(Some(storage)) = window.local_storage() {
-                        let _ = storage.set_item("last_patient_key", &key);
-                    }
-                }
-            }
-        });
-    }
 
     let details = Resource::new(
-        move || effective_patient_key.get(),
-        |key| get_patient_card_details(key),
+        move || patient_key.get(),
+        |key| async move {
+            if key.trim().is_empty() {
+                return Err(ServerFnError::new("Missing patient-id in URL"));
+            }
+            get_patient_card_details(key).await
+        },
     );
 
     view! {
@@ -152,9 +120,6 @@ pub fn WindowsCardDetailsPage() -> impl IntoView {
 
                             <div class="flex items-center justify-between pt-1">
                                 <A href="/windows/browse-patient-entry" attr:class="btn btn-ghost btn-sm text-black/70">"Back"</A>
-                                <A href="/" attr:class="btn btn-xs min-w-28 border-none bg-[#005fb8] text-white hover:bg-[#0051a0]">
-                                    "Finish"
-                                </A>
                             </div>
                         </div>
                     }.into_any(),
@@ -226,54 +191,11 @@ pub async fn get_patient_card_details(
             .await
             .map_err(|e| ServerFnError::new(format!("pool get failed: {e}")))?;
 
-        let patient_opt: Option<PatientCase> = if !patient_key.trim().is_empty() {
-            patient_dsl::patient
-                .filter(patient_dsl::patient_key.eq(&patient_key))
-                .first(&mut conn)
-                .await
-                .optional()
-                .map_err(|e| ServerFnError::new(format!("patient query failed: {e}")))?
-        } else {
-            None
-        };
-
-        let patient_opt = if patient_opt.is_some() {
-            patient_opt
-        } else {
-            patient_dsl::patient
-                .filter(patient_dsl::status.eq("processed"))
-                .order(patient_dsl::requested_at.desc())
-                .first(&mut conn)
-                .await
-                .optional()
-                .map_err(|e| ServerFnError::new(format!("processed query failed: {e}")))?
-        };
-
-        let patient_opt = if patient_opt.is_some() {
-            patient_opt
-        } else {
-            patient_dsl::patient
-                .filter(patient_dsl::status.eq("filled"))
-                .order(patient_dsl::requested_at.desc())
-                .first(&mut conn)
-                .await
-                .optional()
-                .map_err(|e| ServerFnError::new(format!("filled query failed: {e}")))?
-        };
-
-        let Some(patient) = patient_opt else {
-            return Ok(PatientCardDetailsResponse {
-                patient_key: "null".to_string(),
-                name_snapshot: "null".to_string(),
-                age_snapshot: "null".to_string(),
-                gender_snapshot: "null".to_string(),
-                status: "null".to_string(),
-                requested_at: "null".to_string(),
-                filled_at: "null".to_string(),
-                medications: vec![],
-                chat_messages: vec![],
-            });
-        };
+        let patient: PatientCase = patient_dsl::patient
+            .filter(patient_dsl::patient_key.eq(&patient_key))
+            .first(&mut conn)
+            .await
+            .map_err(|e| ServerFnError::new(format!("patient query failed: {e}")))?;
 
         let medications: Vec<CaseMedication> = meds_dsl::case_medications
             .filter(meds_dsl::patient_id.eq(patient.id))

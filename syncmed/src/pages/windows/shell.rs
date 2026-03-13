@@ -97,7 +97,6 @@ pub fn WindowsLayout() -> impl IntoView {
 
                     <div class="flex min-h-[680px] flex-col lg:min-h-[760px] lg:flex-row">
                         <aside class="w-full border-b border-black/10 bg-white p-2 lg:w-[280px] lg:border-b-0 lg:border-r lg:border-black/10">
-                            <div class="mb-2 px-3 py-2 text-xs text-black/80">"SyncMed"</div>
                             <nav class="space-y-1 text-sm">
                                 <A href="/windows/login" attr:class=nav_class("/windows/login")>"Login"</A>
                                 <A href="/windows/generate-url" attr:class=nav_class("/windows/generate-url")>
@@ -106,15 +105,7 @@ pub fn WindowsLayout() -> impl IntoView {
                                 <A href="/windows/browse-patient-entry" attr:class=nav_class("/windows/browse-patient-entry")>
                                     "Browse Patient Entry"
                                 </A>
-                                <A href="/windows/card-details" attr:class=nav_class("/windows/card-details")>
-                                    "Patient Chat Details"
-                                </A>
                             </nav>
-                            <div class="mt-6 border-t border-black/10 pt-2 lg:mt-auto lg:pt-4">
-                                <button type="button" class="btn btn-ghost btn-sm justify-start px-3 font-normal text-black/80">
-                                    "Settings"
-                                </button>
-                            </div>
                         </aside>
 
                         <section class="flex flex-1 flex-col bg-[#f5f5f5]">

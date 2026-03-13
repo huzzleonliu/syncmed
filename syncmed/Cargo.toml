@@ -33,7 +33,7 @@ diesel_migrations = { version = "2", optional = true }
 diesel-async = {version = "0.7.4", features = ["postgres", "bb8"], optional = true}
 chrono = { version = "0.4.44", optional = true, features = ["serde"] }
 sha2 = { version = "0.10.9", optional = true }
-web-sys = { version = "0.3.91", features = ["Window", "Navigator", "Clipboard"] }
+web-sys = { version = "0.3.91", features = ["Window", "Navigator", "Clipboard", "Storage", "Location"] }
 
 
 [features]
