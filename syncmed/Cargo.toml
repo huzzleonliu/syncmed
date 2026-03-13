@@ -32,6 +32,8 @@ diesel = { version = "2.2.0", features = ["postgres", "r2d2", "chrono"], optiona
 diesel_migrations = { version = "2", optional = true }
 diesel-async = {version = "0.7.4", features = ["postgres", "bb8"], optional = true}
 chrono = { version = "0.4.44", optional = true, features = ["serde"] }
+sha2 = { version = "0.10.9", optional = true }
+web-sys = { version = "0.3.91", features = ["Window", "Navigator", "Clipboard"] }
 
 
 [features]
@@ -53,8 +55,10 @@ ssr = [
   "dep:diesel_migrations",
   "dep:diesel-async",
   "dep:chrono",
+  "dep:sha2",
   
 ]
+sha2 = ["dep:sha2"]
 
 [package.metadata.cargo-all-features]
 denylist = ["axum", "tokio", "tower", "tower-http", "leptos_axum"]
