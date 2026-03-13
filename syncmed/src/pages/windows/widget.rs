@@ -1,14 +1,58 @@
 use leptos::prelude::*;
+use leptos::ev::MouseEvent;
 use leptos_meta::Title;
 use leptos_router::components::A;
 
 #[component]
 pub fn WindowsWidgetPage() -> impl IntoView {
     let (is_open, set_is_open) = signal(false);
+    let (position, set_position) = signal((24_i32, 120_i32));
+    let (is_dragging, set_is_dragging) = signal(false);
+    let (drag_offset, set_drag_offset) = signal((0_i32, 0_i32));
+    let (press_point, set_press_point) = signal((0_i32, 0_i32));
+    let (moved_since_press, set_moved_since_press) = signal(false);
+
+    let start_drag = move |ev: MouseEvent| {
+        ev.prevent_default();
+        let (x, y) = position.get_untracked();
+        set_drag_offset.set((ev.client_x() - x, ev.client_y() - y));
+        set_press_point.set((ev.client_x(), ev.client_y()));
+        set_moved_since_press.set(false);
+        set_is_dragging.set(true);
+    };
+
+    let on_move = move |ev: MouseEvent| {
+        if is_dragging.get() {
+            let (ox, oy) = drag_offset.get_untracked();
+            set_position.set((ev.client_x() - ox, ev.client_y() - oy));
+
+            let (sx, sy) = press_point.get_untracked();
+            if (ev.client_x() - sx).abs() > 3 || (ev.client_y() - sy).abs() > 3 {
+                set_moved_since_press.set(true);
+            }
+        }
+    };
+
+    let end_drag = move |_| {
+        set_is_dragging.set(false);
+    };
+
+    let toggle_popup = move |_| {
+        if moved_since_press.get_untracked() {
+            set_moved_since_press.set(false);
+            return;
+        }
+        set_is_open.update(|v| *v = !*v);
+    };
 
     view! {
         <Title text="Windows Widget - SyncMed"/>
-        <main class="relative min-h-screen overflow-hidden bg-[#dcdcdc] text-black">
+        <main
+            class="relative min-h-screen overflow-hidden bg-[#dcdcdc] text-black"
+            on:mousemove=on_move
+            on:mouseup=end_drag
+            on:mouseleave=end_drag
+        >
             <img
                 src="/windows.png"
                 alt="Windows desktop background"
@@ -21,21 +65,30 @@ pub fn WindowsWidgetPage() -> impl IntoView {
                 class="pointer-events-none absolute bottom-0 left-1/2 w-[100vw] max-w-none -translate-x-1/2 border-t border-black/10 object-cover shadow-md"
             />
 
-            <section class="relative mx-auto min-h-screen w-full max-w-[1280px] px-6 pb-20 pt-8">
-                <div class="absolute right-10 top-8 md:right-16">
-                    <button
-                        type="button"
-                        class="group relative rounded-2xl border border-custom-ring bg-custom-background/85 p-2 shadow-lg backdrop-blur transition-transform hover:-translate-y-0.5"
-                        on:click=move |_| set_is_open.update(|v| *v = !*v)
-                    >
-                        <SyncMedTile badge=Some("2")/>
-                    </button>
-                </div>
+            <section class="relative min-h-screen">
+                <button
+                    type="button"
+                    class="absolute z-20 flex h-14 w-14 items-center justify-center rounded-2xl border border-custom-ring bg-custom-background/90 shadow-lg backdrop-blur transition-shadow hover:shadow-xl"
+                    style=move || {
+                        let (x, y) = position.get();
+                        format!("left: {x}px; top: {y}px;")
+                    }
+                    on:mousedown=start_drag
+                    on:click=toggle_popup
+                >
+                    <SyncMedTile badge=Some("2")/>
+                </button>
 
                 {move || if is_open.get() {
                     view! {
-                        <div class="absolute right-10 top-24 md:right-16 md:top-24">
-                            <div class="origin-top-right rounded-[22px] border border-custom-ring bg-custom-subtle-background p-4 shadow-[0_16px_35px_rgba(0,0,0,0.16)] animate-[fadeIn_160ms_ease-out]">
+                        <div
+                            class="absolute z-10"
+                            style=move || {
+                                let (x, y) = position.get();
+                                format!("left: {}px; top: {}px;", x + 72, y)
+                            }
+                        >
+                            <div class="rounded-[22px] border border-custom-ring bg-custom-subtle-background p-4 shadow-[0_16px_35px_rgba(0,0,0,0.16)] animate-[fadeIn_160ms_ease-out]">
                                 <div class="mb-3 flex items-center gap-3">
                                     <SyncMedTile badge=Some("2")/>
                                     <div>
@@ -46,8 +99,7 @@ pub fn WindowsWidgetPage() -> impl IntoView {
                                 <PatientListCard/>
                             </div>
                         </div>
-                    }
-                        .into_any()
+                    }.into_any()
                 } else {
                     view! { <div></div> }.into_any()
                 }}
