@@ -156,7 +156,7 @@ pub async fn generate_patient_url(
 ) -> Result<GenerateUrlResponse, ServerFnError> {
     #[cfg(feature = "ssr")]
     {
-        use crate::db::{DbPool, models::NewPatient, schema::patients::dsl as patients_dsl};
+        use crate::db::{DbPool, models::NewPatientCase, schema::patient::dsl as patient_dsl};
         use axum::Extension;
         use chrono::Utc;
         use diesel_async::RunQueryDsl;
@@ -193,17 +193,18 @@ pub async fn generate_patient_url(
             .await
             .map_err(|e| ServerFnError::new(format!("pool get failed: {e}")))?;
 
-        let new_patient = NewPatient {
+        let new_patient = NewPatientCase {
             patient_key: patient_key.clone(),
-            name,
-            age: age_num,
-            gender,
-            report_status: "request sent".to_string(),
+            doctor_user_id: None,
+            name_snapshot: name,
+            age_snapshot: age_num,
+            gender_snapshot: gender,
+            status: "sent".to_string(),
             requested_at: now,
-            completed_at: None,
+            filled_at: None,
         };
 
-        diesel::insert_into(patients_dsl::patients)
+        diesel::insert_into(patient_dsl::patient)
             .values(&new_patient)
             .execute(&mut conn)
             .await

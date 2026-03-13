@@ -1,6 +1,5 @@
 use leptos::prelude::*;
 use leptos_meta::Title;
-use leptos_router::components::A;
 use serde::{Deserialize, Serialize};
 
 #[component]
@@ -43,9 +42,9 @@ pub fn WindowsBrowsePatientEntryPage() -> impl IntoView {
                                 <option value="name">"Name"</option>
                                 <option value="age">"Age"</option>
                                 <option value="gender">"Gender"</option>
-                                <option value="report_status">"Status"</option>
+                                <option value="status">"Status"</option>
                                 <option value="requested_at">"Requested Time"</option>
-                                <option value="completed_at">"Completed Time"</option>
+                                <option value="filled_at">"Completed Time"</option>
                             </select>
                         </div>
                         <div class="flex-1">
@@ -66,9 +65,9 @@ pub fn WindowsBrowsePatientEntryPage() -> impl IntoView {
                                 <th>"Name"</th>
                                 <th>"Age"</th>
                                 <th>"Gender"</th>
-                                <th>"Report Status"</th>
+                                <th>"Status"</th>
                                 <th>"Sent Time"</th>
-                                <th>"Finish Time"</th>
+                                <th>"Filled Time"</th>
                                 <th>"Interact"</th>
                             </tr>
                         </thead>
@@ -84,12 +83,13 @@ pub fn WindowsBrowsePatientEntryPage() -> impl IntoView {
                                                 .map(|item| {
                                                     view! {
                                                         <PatientRow
+                                                            patient_key=item.patient_key
                                                             name=item.name
                                                             age=item.age
                                                             gender=item.gender
-                                                            status=item.report_status
+                                                            status=item.status
                                                             sent=item.requested_at
-                                                            finish=item.completed_at
+                                                            finish=item.filled_at
                                                         />
                                                     }
                                                 })
@@ -100,7 +100,7 @@ pub fn WindowsBrowsePatientEntryPage() -> impl IntoView {
                                     Some(Err(err)) => view! {
                                         <tr>
                                             <td colspan="7" class="py-4 text-center text-red-600">
-                                                {format!("Failed to load patients: {err}")}
+                                                {format!("Failed to load entries: {err}")}
                                             </td>
                                         </tr>
                                     }
@@ -118,6 +118,7 @@ pub fn WindowsBrowsePatientEntryPage() -> impl IntoView {
 
 #[component]
 fn PatientRow(
+    patient_key: String,
     name: String,
     age: String,
     gender: String,
@@ -125,35 +126,50 @@ fn PatientRow(
     sent: String,
     finish: String,
 ) -> impl IntoView {
-    let is_finished = status == "finished";
+    let detail_error = RwSignal::new(String::new());
+    #[cfg(not(target_arch = "wasm32"))]
+    let _ = &patient_key;
     view! {
         <tr class="border-black/5">
             <td>{name}</td>
             <td>{age}</td>
             <td>{gender}</td>
-            <td>{status}</td>
+            <td>{status.clone()}</td>
             <td>{sent}</td>
             <td>{finish}</td>
             <td>
-                {if is_finished {
-                    view! {
-                        <A href="/windows/card-details" attr:class="btn btn-xs min-h-6 h-6 border-none bg-[#005fb8] px-3 text-white hover:bg-[#0051a0]">
-                            "Detail"
-                        </A>
+                <button
+                    type="button"
+                    class="btn btn-xs min-h-6 h-6 border-none bg-[#005fb8] px-3 text-white hover:bg-[#0051a0]"
+                    on:click=move |_| {
+                        detail_error.set(String::new());
+
+                        #[cfg(target_arch = "wasm32")]
+                        {
+                            let status_now = status.clone();
+                            let key_now = patient_key.clone();
+                            leptos::task::spawn_local(async move {
+                                if status_now == "filled" {
+                                    let _ = mark_patient_processed(key_now.clone()).await;
+                                }
+                                if let Some(window) = web_sys::window() {
+                                    if let Ok(Some(storage)) = window.local_storage() {
+                                        let _ = storage.set_item("last_patient_key", &key_now);
+                                    }
+                                }
+                                if let Some(window) = web_sys::window() {
+                                    let _ = window.location()
+                                        .set_href(&format!("/windows/card-details?patient-id={key_now}"));
+                                }
+                            });
+                        }
                     }
-                        .into_any()
-                } else {
-                    view! {
-                        <button
-                            type="button"
-                            disabled
-                            class="btn btn-xs h-6 min-h-6 cursor-not-allowed border-none bg-base-300 px-3 text-base-content/60"
-                        >
-                            "Detail"
-                        </button>
-                    }
-                        .into_any()
-                }}
+                >
+                    "Detail"
+                </button>
+                <Show when=move || !detail_error.get().is_empty()>
+                    <p class="text-[10px] text-red-600">{move || detail_error.get()}</p>
+                </Show>
             </td>
         </tr>
     }
@@ -161,12 +177,13 @@ fn PatientRow(
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PatientBrowseRow {
+    pub patient_key: String,
     pub name: String,
     pub age: String,
     pub gender: String,
-    pub report_status: String,
+    pub status: String,
     pub requested_at: String,
-    pub completed_at: String,
+    pub filled_at: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -181,7 +198,7 @@ pub async fn get_patients_for_browse(
 ) -> Result<PatientBrowseResponse, ServerFnError> {
     #[cfg(feature = "ssr")]
     {
-        use crate::db::{DbPool, models::Patient, schema::patients::dsl as patients_dsl};
+        use crate::db::{DbPool, models::PatientCase, schema::patient::dsl as patient_dsl};
         use axum::Extension;
         use diesel::prelude::*;
         use diesel_async::RunQueryDsl;
@@ -196,46 +213,46 @@ pub async fn get_patients_for_browse(
             .await
             .map_err(|e| ServerFnError::new(format!("pool get failed: {e}")))?;
 
-        let patients: Vec<Patient> = match sort_by.as_str() {
+        let patients: Vec<PatientCase> = match sort_by.as_str() {
             "name" => {
-                patients_dsl::patients
-                    .order(patients_dsl::name.asc())
+                patient_dsl::patient
+                    .order(patient_dsl::name_snapshot.asc())
                     .load(&mut conn)
                     .await
             }
             "age" => {
-                patients_dsl::patients
-                    .order(patients_dsl::age.asc())
+                patient_dsl::patient
+                    .order(patient_dsl::age_snapshot.asc())
                     .load(&mut conn)
                     .await
             }
             "gender" => {
-                patients_dsl::patients
-                    .order(patients_dsl::gender.asc())
+                patient_dsl::patient
+                    .order(patient_dsl::gender_snapshot.asc())
                     .load(&mut conn)
                     .await
             }
-            "report_status" => {
-                patients_dsl::patients
-                    .order(patients_dsl::report_status.asc())
+            "status" => {
+                patient_dsl::patient
+                    .order(patient_dsl::status.asc())
                     .load(&mut conn)
                     .await
             }
-            "completed_at" => {
-                patients_dsl::patients
-                    .order(patients_dsl::completed_at.asc())
+            "filled_at" => {
+                patient_dsl::patient
+                    .order(patient_dsl::filled_at.asc())
                     .load(&mut conn)
                     .await
             }
             "requested_at" => {
-                patients_dsl::patients
-                    .order(patients_dsl::requested_at.asc())
+                patient_dsl::patient
+                    .order(patient_dsl::requested_at.asc())
                     .load(&mut conn)
                     .await
             }
             _ => {
-                patients_dsl::patients
-                    .order(patients_dsl::requested_at.asc())
+                patient_dsl::patient
+                    .order(patient_dsl::requested_at.asc())
                     .load(&mut conn)
                     .await
             }
@@ -245,13 +262,14 @@ pub async fn get_patients_for_browse(
         let items: Vec<PatientBrowseRow> = patients
             .into_iter()
             .map(|p| PatientBrowseRow {
-                name: p.name,
-                age: p.age.to_string(),
-                gender: p.gender,
-                report_status: p.report_status,
+                patient_key: p.patient_key,
+                name: p.name_snapshot,
+                age: p.age_snapshot.to_string(),
+                gender: p.gender_snapshot,
+                status: p.status,
                 requested_at: p.requested_at.format("%Y-%m-%d %H:%M").to_string(),
-                completed_at: p
-                    .completed_at
+                filled_at: p
+                    .filled_at
                     .map(|dt| dt.format("%Y-%m-%d %H:%M").to_string())
                     .unwrap_or_else(|| "-".to_string()),
             })
@@ -264,6 +282,45 @@ pub async fn get_patients_for_browse(
     {
         Err(ServerFnError::new(
             "get_patients_for_browse is only available on the server".to_string(),
+        ))
+    }
+}
+
+#[server(MarkPatientProcessed, "/api")]
+pub async fn mark_patient_processed(patient_key: String) -> Result<(), ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        use crate::db::{DbPool, schema::patient::dsl as patient_dsl};
+        use axum::Extension;
+        use diesel::prelude::*;
+        use diesel_async::RunQueryDsl;
+        use leptos_axum::extract;
+
+        let Extension(pool) = extract::<Extension<DbPool>>()
+            .await
+            .map_err(|e| ServerFnError::new(format!("pool extract failed: {e}")))?;
+
+        let mut conn = pool
+            .get()
+            .await
+            .map_err(|e| ServerFnError::new(format!("pool get failed: {e}")))?;
+
+        diesel::update(
+            patient_dsl::patient
+                .filter(patient_dsl::patient_key.eq(patient_key))
+                .filter(patient_dsl::status.eq("filled")),
+        )
+        .set(patient_dsl::status.eq("processed"))
+        .execute(&mut conn)
+        .await
+        .map_err(|e| ServerFnError::new(format!("update status failed: {e}")))?;
+
+        Ok(())
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        Err(ServerFnError::new(
+            "mark_patient_processed is only available on the server".to_string(),
         ))
     }
 }

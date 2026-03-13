@@ -1,17 +1,43 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
-    patients (id) {
+    case_chat_messages (id) {
         id -> Int4,
-        name -> Text,
-        age -> Int4,
+        patient_id -> Int4,
         #[max_length = 16]
-        gender -> Varchar,
-        #[max_length = 32]
-        report_status -> Varchar,
-        requested_at -> Timestamp,
-        completed_at -> Nullable<Timestamp>,
+        sender_type -> Varchar,
+        content_text -> Text,
+        created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    case_medications (id) {
+        id -> Int4,
+        patient_id -> Int4,
+        med_name -> Text,
+        dose -> Text,
+        frequency -> Text,
+        start_date -> Nullable<Date>,
+        end_date -> Nullable<Date>,
+        notes -> Nullable<Text>,
+        created_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    patient (id) {
+        id -> Int4,
         patient_key -> Text,
+        doctor_user_id -> Nullable<Int4>,
+        name_snapshot -> Text,
+        age_snapshot -> Int4,
+        #[max_length = 16]
+        gender_snapshot -> Varchar,
+        #[max_length = 16]
+        status -> Varchar,
+        requested_at -> Timestamp,
+        filled_at -> Nullable<Timestamp>,
     }
 }
 
@@ -27,4 +53,22 @@ diesel::table! {
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(patients, question_log,);
+diesel::table! {
+    users (id) {
+        id -> Int4,
+        display_name -> Text,
+        email -> Text,
+    }
+}
+
+diesel::joinable!(case_chat_messages -> patient (patient_id));
+diesel::joinable!(case_medications -> patient (patient_id));
+diesel::joinable!(patient -> users (doctor_user_id));
+
+diesel::allow_tables_to_appear_in_same_query!(
+    case_chat_messages,
+    case_medications,
+    patient,
+    question_log,
+    users,
+);
