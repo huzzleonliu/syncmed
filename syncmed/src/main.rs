@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 use axum::Router;
 use leptos::prelude::*;
 use leptos_axum::{LeptosRoutes, generate_route_list};
