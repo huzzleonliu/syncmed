@@ -44,6 +44,7 @@ pub fn WindowsWidgetPage() -> impl IntoView {
         }
         set_is_open.update(|v| *v = !*v);
     };
+    let filled_count = Resource::new(|| (), |_| get_filled_patient_count());
 
     view! {
         <Title text="Windows Widget - SyncMed"/>
@@ -76,7 +77,12 @@ pub fn WindowsWidgetPage() -> impl IntoView {
                     on:mousedown=start_drag
                     on:click=toggle_popup
                 >
-                    <SyncMedTile badge=Some("2")/>
+                    <SyncMedTile badge_count=move || {
+                        filled_count
+                            .get()
+                            .and_then(|res| res.ok())
+                            .unwrap_or(0)
+                    }/>
                 </button>
 
                 {move || if is_open.get() {
@@ -90,7 +96,12 @@ pub fn WindowsWidgetPage() -> impl IntoView {
                         >
                             <div class="rounded-[22px] border border-custom-ring bg-custom-subtle-background p-4 shadow-[0_16px_35px_rgba(0,0,0,0.16)] animate-[fadeIn_160ms_ease-out]">
                                 <div class="mb-3 flex items-center gap-3">
-                                    <SyncMedTile badge=Some("2")/>
+                                    <SyncMedTile badge_count=move || {
+                                        filled_count
+                                            .get()
+                                            .and_then(|res| res.ok())
+                                            .unwrap_or(0)
+                                    }/>
                                     <div>
                                         <p class="text-sm font-semibold text-custom-foreground">"SyncMed Widget"</p>
                                         <p class="text-xs text-custom-primary">"Select entry to continue"</p>
@@ -109,15 +120,18 @@ pub fn WindowsWidgetPage() -> impl IntoView {
 }
 
 #[component]
-fn SyncMedTile(badge: Option<&'static str>) -> impl IntoView {
+fn SyncMedTile(
+    #[prop(into)] badge_count: Signal<i64>,
+) -> impl IntoView {
     view! {
         <div class="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-custom-ring/70 bg-custom-background/90 backdrop-blur">
             <div class="h-8 w-8 rounded-lg bg-custom-primary/85"></div>
             {move || {
-                badge.map(|value| {
+                let value = badge_count.get();
+                (value > 0).then(move || {
                     view! {
                         <span class="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
-                            {value}
+                            {value.to_string()}
                         </span>
                     }
                 })
@@ -164,5 +178,42 @@ fn PatientListCard() -> impl IntoView {
                 </div>
             </div>
         </div>
+    }
+}
+
+#[server(GetFilledPatientCount, "/api")]
+pub async fn get_filled_patient_count() -> Result<i64, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        use crate::db::{DbPool, schema::patient::dsl as patient_dsl};
+        use axum::Extension;
+        use diesel::ExpressionMethods;
+        use diesel::QueryDsl;
+        use diesel::dsl::count_star;
+        use diesel_async::RunQueryDsl;
+        use leptos_axum::extract;
+
+        let Extension(pool) = extract::<Extension<DbPool>>()
+            .await
+            .map_err(|e| ServerFnError::new(format!("pool extract failed: {e}")))?;
+        let mut conn = pool
+            .get()
+            .await
+            .map_err(|e| ServerFnError::new(format!("pool get failed: {e}")))?;
+
+        let count = patient_dsl::patient
+            .filter(patient_dsl::status.eq("filled"))
+            .select(count_star())
+            .first::<i64>(&mut conn)
+            .await
+            .map_err(|e| ServerFnError::new(format!("count query failed: {e}")))?;
+
+        Ok(count)
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        Err(ServerFnError::new(
+            "get_filled_patient_count is only available on the server".to_string(),
+        ))
     }
 }
