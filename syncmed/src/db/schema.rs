@@ -58,6 +58,8 @@ diesel::table! {
     users (id) {
         id -> Int4,
         display_name -> Text,
+        #[max_length = 16]
+        role -> Varchar,
         email -> Text,
     }
 }

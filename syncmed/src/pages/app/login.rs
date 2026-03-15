@@ -49,11 +49,7 @@ fn DesktopHeader() -> impl IntoView {
         <header class="hidden border-b border-custom-border bg-custom-card lg:block">
             <div class="mx-auto flex h-[85px] w-full max-w-[1200px] items-center justify-between px-6">
                 <SyncMedLogo/>
-                <nav class="flex items-center gap-8 text-sm font-medium">
-                    <a href="#" class="link link-hover text-custom-primary no-underline">"Home"</a>
-                    <a href="#" class="link link-hover text-custom-foreground no-underline">"Dashboard"</a>
-                    <a href="#" class="link link-hover text-custom-foreground no-underline">"Login"</a>
-                </nav>
+                
             </div>
         </header>
     }
