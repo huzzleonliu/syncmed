@@ -202,6 +202,7 @@ pub async fn generate_patient_url(
             status: "sent".to_string(),
             requested_at: now,
             filled_at: None,
+            modified_at: Some(now),
         };
 
         diesel::insert_into(patient_dsl::patient)

@@ -42,6 +42,7 @@ pub struct PatientCase {
     pub status: String,
     pub requested_at: NaiveDateTime,
     pub filled_at: Option<NaiveDateTime>,
+    pub modified_at: Option<NaiveDateTime>,
 }
 
 #[derive(Insertable)]
@@ -57,6 +58,7 @@ pub struct NewPatientCase {
     pub status: String,
     pub requested_at: NaiveDateTime,
     pub filled_at: Option<NaiveDateTime>,
+    pub modified_at: Option<NaiveDateTime>,
 }
 
 #[derive(Queryable, Selectable)]

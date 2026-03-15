@@ -2,6 +2,7 @@ use leptos::prelude::*;
 use leptos::ev::MouseEvent;
 use leptos_meta::Title;
 use leptos_router::components::A;
+use serde::{Deserialize, Serialize};
 
 #[component]
 pub fn WindowsWidgetPage() -> impl IntoView {
@@ -142,42 +143,182 @@ fn SyncMedTile(
 
 #[component]
 fn PatientListCard() -> impl IntoView {
+    let overview = Resource::new(|| (), |_| get_widget_patient_overview());
+
     view! {
         <div class="w-[230px] rounded-2xl border-2 border-custom-ring bg-custom-subtle-background p-3">
             <div class="mb-3 grid grid-cols-2 gap-2 text-center">
                 <div class="rounded-xl border border-custom-ring bg-custom-background py-2">
                     <p class="text-xs text-custom-card-foreground">"New Entry"</p>
-                    <p class="text-lg font-bold text-custom-foreground">"3"</p>
+                    <p class="text-lg font-bold text-custom-foreground">
+                        {move || {
+                            overview
+                                .get()
+                                .and_then(|res| res.ok())
+                                .map(|r| r.new_entry_count.to_string())
+                                .unwrap_or_else(|| "0".to_string())
+                        }}
+                    </p>
                 </div>
                 <div class="rounded-xl border border-custom-ring bg-custom-background py-2">
                     <p class="text-xs text-custom-card-foreground">"Total Entry"</p>
-                    <p class="text-lg font-bold text-custom-foreground">"21"</p>
+                    <p class="text-lg font-bold text-custom-foreground">
+                        {move || {
+                            overview
+                                .get()
+                                .and_then(|res| res.ok())
+                                .map(|r| r.total_entry_count.to_string())
+                                .unwrap_or_else(|| "0".to_string())
+                        }}
+                    </p>
                 </div>
             </div>
             <div class="space-y-1.5">
-                <A
-                    href="/windows/login"
-                    attr:class="block rounded border border-custom-primary/40 bg-custom-secondary px-3 py-1 text-sm font-semibold text-custom-foreground hover:bg-custom-secondary"
-                >
-                    "Huzz Liu   30   male"
-                </A>
-                <A
-                    href="/windows/login"
-                    attr:class="block rounded border border-custom-primary/40 bg-custom-secondary px-3 py-1 text-sm font-semibold text-custom-foreground hover:bg-custom-secondary"
-                >
-                    "Huzz Liu   30   male"
-                </A>
-                <A
-                    href="/windows/login"
-                    attr:class="block rounded border border-custom-primary/40 bg-custom-secondary px-3 py-1 text-sm font-semibold text-custom-foreground hover:bg-custom-secondary"
-                >
-                    "Huzz Liu   30   male"
-                </A>
-                <div class="rounded border border-custom-ring/40 bg-custom-background px-3 py-1 text-sm text-custom-card-foreground">
-                    "Huzz Liu   30   male"
-                </div>
+                <Suspense fallback=move || view! {
+                    <div class="rounded border border-custom-ring/40 bg-custom-background px-3 py-1 text-sm text-custom-card-foreground">
+                        "Loading..."
+                    </div>
+                }>
+                    {move || match overview.get() {
+                        Some(Ok(data)) => {
+                            if data.items.is_empty() {
+                                view! {
+                                    <div class="rounded border border-custom-ring/40 bg-custom-background px-3 py-1 text-sm text-custom-card-foreground">
+                                        "No recent entries"
+                                    </div>
+                                }.into_any()
+                            } else {
+                                let (filled_items, other_items): (Vec<WidgetPatientRow>, Vec<WidgetPatientRow>) =
+                                    data.items
+                                        .into_iter()
+                                        .partition(|item| item.status == "filled");
+
+                                filled_items
+                                    .into_iter()
+                                    .map(|item| {
+                                        view! {
+                                            <A
+                                                href=format!("/windows/card-details?patient-id={}", item.patient_key)
+                                                attr:class="block rounded border border-custom-primary/40 bg-custom-secondary px-3 py-1 text-sm font-bold text-custom-foreground hover:bg-custom-secondary"
+                                            >
+                                                {format!("{}   {}   {}", item.name_snapshot, item.age_snapshot, item.gender_snapshot)}
+                                            </A>
+                                        }
+                                    })
+                                    .chain(
+                                        other_items
+                                            .into_iter()
+                                            .map(|item| {
+                                                view! {
+                                                    <A
+                                                        href=format!("/windows/card-details?patient-id={}", item.patient_key)
+                                                        attr:class="block rounded border border-custom-primary/40 bg-custom-secondary px-3 py-1 text-sm font-normal text-custom-foreground hover:bg-custom-secondary"
+                                                    >
+                                                        {format!("{}   {}   {}", item.name_snapshot, item.age_snapshot, item.gender_snapshot)}
+                                                    </A>
+                                                }
+                                            })
+                                    )
+                                    .collect_view()
+                                    .into_any()
+                            }
+                        }
+                        Some(Err(_)) => view! {
+                            <div class="rounded border border-red-300 bg-red-50 px-3 py-1 text-sm text-red-600">
+                                "Failed to load recent entries"
+                            </div>
+                        }.into_any(),
+                        None => view! {
+                            <div class="rounded border border-custom-ring/40 bg-custom-background px-3 py-1 text-sm text-custom-card-foreground">
+                                "Loading..."
+                            </div>
+                        }.into_any(),
+                    }}
+                </Suspense>
             </div>
         </div>
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct WidgetPatientRow {
+    pub patient_key: String,
+    pub name_snapshot: String,
+    pub age_snapshot: i32,
+    pub gender_snapshot: String,
+    pub status: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct WidgetPatientOverview {
+    pub new_entry_count: i64,
+    pub total_entry_count: i64,
+    pub items: Vec<WidgetPatientRow>,
+}
+
+#[server(GetWidgetPatientOverview, "/api")]
+pub async fn get_widget_patient_overview() -> Result<WidgetPatientOverview, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        use crate::db::{DbPool, models::PatientCase, schema::patient::dsl as patient_dsl};
+        use axum::Extension;
+        use diesel::dsl::count_star;
+        use diesel::ExpressionMethods;
+        use diesel::QueryDsl;
+        use diesel_async::RunQueryDsl;
+        use leptos_axum::extract;
+
+        let Extension(pool) = extract::<Extension<DbPool>>()
+            .await
+            .map_err(|e| ServerFnError::new(format!("pool extract failed: {e}")))?;
+        let mut conn = pool
+            .get()
+            .await
+            .map_err(|e| ServerFnError::new(format!("pool get failed: {e}")))?;
+
+        let new_entry_count = patient_dsl::patient
+            .filter(patient_dsl::status.eq("filled"))
+            .select(count_star())
+            .first::<i64>(&mut conn)
+            .await
+            .map_err(|e| ServerFnError::new(format!("new entry count query failed: {e}")))?;
+
+        let total_entry_count = patient_dsl::patient
+            .select(count_star())
+            .first::<i64>(&mut conn)
+            .await
+            .map_err(|e| ServerFnError::new(format!("total count query failed: {e}")))?;
+
+        let patients: Vec<PatientCase> = patient_dsl::patient
+            .order((
+                patient_dsl::modified_at.desc(),
+                patient_dsl::requested_at.desc(),
+            ))
+            .limit(10)
+            .load(&mut conn)
+            .await
+            .map_err(|e| ServerFnError::new(format!("recent query failed: {e}")))?;
+
+        Ok(WidgetPatientOverview {
+            new_entry_count,
+            total_entry_count,
+            items: patients
+                .into_iter()
+                .map(|p| WidgetPatientRow {
+                    patient_key: p.patient_key,
+                    name_snapshot: p.name_snapshot,
+                    age_snapshot: p.age_snapshot,
+                    gender_snapshot: p.gender_snapshot,
+                    status: p.status,
+                })
+                .collect(),
+        })
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        Err(ServerFnError::new(
+            "get_widget_patient_overview is only available on the server".to_string(),
+        ))
     }
 }
 

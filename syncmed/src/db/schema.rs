@@ -38,6 +38,7 @@ diesel::table! {
         status -> Varchar,
         requested_at -> Timestamp,
         filled_at -> Nullable<Timestamp>,
+        modified_at -> Nullable<Timestamp>,
     }
 }
 

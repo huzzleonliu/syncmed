@@ -292,6 +292,7 @@ pub async fn mark_patient_processed(patient_key: String) -> Result<(), ServerFnE
     {
         use crate::db::{DbPool, schema::patient::dsl as patient_dsl};
         use axum::Extension;
+        use chrono::Utc;
         use diesel::prelude::*;
         use diesel_async::RunQueryDsl;
         use leptos_axum::extract;
@@ -310,7 +311,10 @@ pub async fn mark_patient_processed(patient_key: String) -> Result<(), ServerFnE
                 .filter(patient_dsl::patient_key.eq(patient_key))
                 .filter(patient_dsl::status.eq("filled")),
         )
-        .set(patient_dsl::status.eq("processed"))
+        .set((
+            patient_dsl::status.eq("processed"),
+            patient_dsl::modified_at.eq(Some(Utc::now().naive_utc())),
+        ))
         .execute(&mut conn)
         .await
         .map_err(|e| ServerFnError::new(format!("update status failed: {e}")))?;
