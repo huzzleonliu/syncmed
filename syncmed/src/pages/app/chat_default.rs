@@ -1,6 +1,7 @@
 use leptos::prelude::*;
 use leptos_meta::Title;
-use leptos_router::components::A;
+use leptos_router::{components::A, hooks::use_query_map};
+use serde::{Deserialize, Serialize};
 
 const LOGO_GROUP_URL: &str =
     "https://www.figma.com/api/mcp/asset/a5f3a6b1-a02e-4798-b13a-32da13edf8de";
@@ -11,6 +12,13 @@ const MEDICINE_IMAGE_URL: &str =
 
 #[component]
 pub fn AppChatDefaultPage() -> impl IntoView {
+    let query = use_query_map();
+    let patient_key = Memo::new(move |_| {
+        query
+            .get()
+            .get("patient-id")
+            .unwrap_or_else(String::new)
+    });
     view! {
         <Title text="App Chat Default - SyncMed"/>
         <main class="min-h-screen bg-custom-subtle-background text-custom-foreground">
@@ -36,8 +44,8 @@ pub fn AppChatDefaultPage() -> impl IntoView {
 
             <section class="mx-auto w-full max-w-[1280px] px-4 py-6 md:px-6 md:py-8">
                 <div class="grid gap-4 lg:grid-cols-[2fr_1fr]">
-                    <ChatPanel/>
-                    <MedicationPanel/>
+                    <ChatPanel patient_key=patient_key.get_untracked()/>
+                    <MedicationPanel patient_key=patient_key.get_untracked()/>
                 </div>
             </section>
 
@@ -49,37 +57,105 @@ pub fn AppChatDefaultPage() -> impl IntoView {
 }
 
 #[component]
-fn ChatPanel() -> impl IntoView {
+fn ChatPanel(
+    patient_key: String,
+) -> impl IntoView {
+    let (draft, set_draft) = signal(String::new());
+    let (reload_key, set_reload_key) = signal(0_u64);
+    let patient_key_for_resource = patient_key.clone();
+    let patient_key_for_links = patient_key.clone();
+    let patient_key_for_send = patient_key.clone();
+    #[cfg(not(target_arch = "wasm32"))]
+    let _ = &set_reload_key;
+
+    let chat_history = Resource::new(
+        move || (patient_key_for_resource.clone(), reload_key.get()),
+        |(key, _)| async move {
+            if key.trim().is_empty() {
+                return Err(ServerFnError::new("Missing patient-id in URL"));
+            }
+            get_patient_chat_messages(key).await
+        },
+    );
+
     view! {
         <div class="card border border-custom-border bg-custom-background shadow-sm">
             <div class="flex items-center justify-between border-b border-custom-border p-4">
                 <h2 class="text-xl font-bold text-custom-foreground">"Medication Reconciliation"</h2>
                 <div class="flex items-center gap-2">
-                    <A href="/app/chat-accessibility" attr:class="btn btn-primary btn-sm">"Switch to accessibility page"</A>
+                    <A
+                        href=if patient_key_for_links.trim().is_empty() {
+                            "/app/chat-accessibility".to_string()
+                        } else {
+                            format!("/app/chat-accessibility?patient-id={patient_key_for_links}")
+                        }
+                        attr:class="btn btn-primary btn-sm"
+                    >
+                        "Switch to accessibility page"
+                    </A>
                     <button type="button" class="btn btn-primary btn-square btn-sm">"↗"</button>
                 </div>
             </div>
 
             <div class="space-y-4 p-4">
-                <ChatBubble
-                    text="Hello! I'm here to help you create a complete list of medications Huzz. Let's start by discussing any prescription medications you're currently taking. What medications do you take regularly?"
-                    time="10:19"
-                    from_user=false
-                />
-                <ChatBubble text="fdfdf" time="10:19" from_user=true/>
-                <ChatBubble
-                    text="Hello Huzz, I'm here to help you review your medications to make sure everything is accurate and up-to-date. To start, can you tell me the names of any medications or supplements you are currently taking? If you're not sure, do you remember what the medication is for, or what it looks like?"
-                    time="10:19"
-                    from_user=false
-                />
+                <Suspense fallback=move || view! { <p class="text-sm text-custom-muted-foreground">"Loading chat..."</p> }>
+                    {move || match chat_history.get() {
+                        Some(Ok(items)) => {
+                            if items.is_empty() {
+                                view! { <p class="text-sm text-custom-muted-foreground">"No chat messages yet."</p> }.into_any()
+                            } else {
+                                items
+                                    .into_iter()
+                                    .map(|item| {
+                                        view! {
+                                            <ChatBubble
+                                                text=item.content_text
+                                                time=item.created_at_text
+                                                from_user=item.sender_type == "patient"
+                                            />
+                                        }
+                                    })
+                                    .collect_view()
+                                    .into_any()
+                            }
+                        }
+                        Some(Err(err)) => view! {
+                            <p class="text-sm text-red-600">{format!("Failed to load chat: {err}")}</p>
+                        }.into_any(),
+                        None => view! { <p class="text-sm text-custom-muted-foreground">"Loading chat..."</p> }.into_any(),
+                    }}
+                </Suspense>
             </div>
 
             <div class="mt-auto flex items-center gap-3 border-t border-custom-border p-4">
                 <textarea
                     class="textarea textarea-bordered h-20 flex-1 resize-none border-custom-input bg-custom-background"
                     placeholder="Type your message here..."
+                    prop:value=move || draft.get()
+                    on:input=move |ev| set_draft.set(event_target_value(&ev))
                 ></textarea>
-                <button type="button" class="btn btn-primary btn-circle">"➤"</button>
+                <button
+                    type="button"
+                    class="btn btn-primary btn-circle"
+                    on:click=move |_| {
+                        let key = patient_key_for_send.clone();
+                        let text = draft.get_untracked().trim().to_string();
+                        if key.trim().is_empty() || text.is_empty() {
+                            return;
+                        }
+                        set_draft.set(String::new());
+
+                        #[cfg(target_arch = "wasm32")]
+                        {
+                            leptos::task::spawn_local(async move {
+                                let _ = add_patient_chat_message(key, text).await;
+                                set_reload_key.update(|v| *v += 1);
+                            });
+                        }
+                    }
+                >
+                    "➤"
+                </button>
                 <button type="button" class="btn btn-outline btn-circle border-custom-input">"◍"</button>
             </div>
         </div>
@@ -87,7 +163,7 @@ fn ChatPanel() -> impl IntoView {
 }
 
 #[component]
-fn ChatBubble(text: &'static str, time: &'static str, from_user: bool) -> impl IntoView {
+fn ChatBubble(text: String, time: String, from_user: bool) -> impl IntoView {
     let wrap_class = if from_user {
         "justify-end"
     } else {
@@ -109,8 +185,138 @@ fn ChatBubble(text: &'static str, time: &'static str, from_user: bool) -> impl I
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AppChatMessageRow {
+    pub sender_type: String,
+    pub content_text: String,
+    pub created_at_text: String,
+}
+
+#[server(GetPatientChatMessages, "/api")]
+pub async fn get_patient_chat_messages(
+    patient_key: String,
+) -> Result<Vec<AppChatMessageRow>, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        use crate::db::{
+            DbPool,
+            models::CaseChatMessage,
+            schema::{case_chat_messages::dsl as chat_dsl, patient::dsl as patient_dsl},
+        };
+        use axum::Extension;
+        use diesel::prelude::*;
+        use diesel_async::RunQueryDsl;
+        use leptos_axum::extract;
+
+        let Extension(pool) = extract::<Extension<DbPool>>()
+            .await
+            .map_err(|e| ServerFnError::new(format!("pool extract failed: {e}")))?;
+        let mut conn = pool
+            .get()
+            .await
+            .map_err(|e| ServerFnError::new(format!("pool get failed: {e}")))?;
+
+        let patient_id: i32 = patient_dsl::patient
+            .filter(patient_dsl::patient_key.eq(&patient_key))
+            .select(patient_dsl::id)
+            .first(&mut conn)
+            .await
+            .map_err(|e| ServerFnError::new(format!("patient query failed: {e}")))?;
+
+        let messages: Vec<CaseChatMessage> = chat_dsl::case_chat_messages
+            .filter(chat_dsl::patient_id.eq(patient_id))
+            .order(chat_dsl::created_at.asc())
+            .load(&mut conn)
+            .await
+            .map_err(|e| ServerFnError::new(format!("chat query failed: {e}")))?;
+
+        Ok(messages
+            .into_iter()
+            .map(|m| AppChatMessageRow {
+                sender_type: m.sender_type,
+                content_text: m.content_text,
+                created_at_text: m.created_at.format("%H:%M").to_string(),
+            })
+            .collect())
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        Err(ServerFnError::new(
+            "get_patient_chat_messages is only available on the server".to_string(),
+        ))
+    }
+}
+
+#[server(AddPatientChatMessage, "/api")]
+pub async fn add_patient_chat_message(
+    patient_key: String,
+    content_text: String,
+) -> Result<(), ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        use crate::db::{
+            DbPool,
+            models::NewCaseChatMessage,
+            schema::{case_chat_messages::dsl as chat_dsl, patient::dsl as patient_dsl},
+        };
+        use axum::Extension;
+        use chrono::Utc;
+        use diesel::prelude::*;
+        use diesel_async::RunQueryDsl;
+        use leptos_axum::extract;
+
+        let content = content_text.trim().to_string();
+        if content.is_empty() {
+            return Ok(());
+        }
+
+        let Extension(pool) = extract::<Extension<DbPool>>()
+            .await
+            .map_err(|e| ServerFnError::new(format!("pool extract failed: {e}")))?;
+        let mut conn = pool
+            .get()
+            .await
+            .map_err(|e| ServerFnError::new(format!("pool get failed: {e}")))?;
+
+        let patient_id: i32 = patient_dsl::patient
+            .filter(patient_dsl::patient_key.eq(&patient_key))
+            .select(patient_dsl::id)
+            .first(&mut conn)
+            .await
+            .map_err(|e| ServerFnError::new(format!("patient query failed: {e}")))?;
+
+        let new_message = NewCaseChatMessage {
+            patient_id,
+            sender_type: "patient".to_string(),
+            content_text: content,
+        };
+
+        diesel::insert_into(chat_dsl::case_chat_messages)
+            .values(&new_message)
+            .execute(&mut conn)
+            .await
+            .map_err(|e| ServerFnError::new(format!("insert chat failed: {e}")))?;
+
+        diesel::update(patient_dsl::patient.filter(patient_dsl::id.eq(patient_id)))
+            .set(patient_dsl::modified_at.eq(Some(Utc::now().naive_utc())))
+            .execute(&mut conn)
+            .await
+            .map_err(|e| ServerFnError::new(format!("update patient modified_at failed: {e}")))?;
+
+        Ok(())
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        Err(ServerFnError::new(
+            "add_patient_chat_message is only available on the server".to_string(),
+        ))
+    }
+}
+
 #[component]
-fn MedicationPanel() -> impl IntoView {
+fn MedicationPanel(
+    patient_key: String,
+) -> impl IntoView {
     view! {
         <div class="card border border-custom-border bg-custom-background shadow-sm">
             <div class="border-b border-custom-border p-4">
@@ -124,7 +330,16 @@ fn MedicationPanel() -> impl IntoView {
             </div>
 
             <div class="p-4 pt-0">
-                <A href="/app/confirm-success-page" attr:class="btn btn-primary w-full">"Confirm and Upload"</A>
+                <A
+                    href=if patient_key.trim().is_empty() {
+                        "/app/confirm-success-page".to_string()
+                    } else {
+                        format!("/app/confirm-success-page?patient-id={patient_key}")
+                    }
+                    attr:class="btn btn-primary w-full"
+                >
+                    "Confirm and Upload"
+                </A>
             </div>
         </div>
     }

@@ -143,6 +143,7 @@ fn PatientListCard() -> impl IntoView {
                                             .map(|item| {
                                                 view! {
                                                     <PatientRow
+                                                        patient_key=item.patient_key
                                                         name=item.name_snapshot
                                                         age=item.age_snapshot
                                                         gender=item.gender_snapshot
@@ -177,6 +178,7 @@ fn PatientListCard() -> impl IntoView {
 
 #[component]
 fn PatientRow(
+    patient_key: String,
     name: String,
     age: i32,
     gender: String,
@@ -189,7 +191,12 @@ fn PatientRow(
             <td>{gender}</td>
             <td>{creator}</td>
             <td class="text-right">
-                <A href="/app/confirm-identity" attr:class="btn btn-primary h-9 min-h-9 px-4">"Choose"</A>
+                <A
+                    href=format!("/app/confirm-identity?patient-id={patient_key}")
+                    attr:class="btn btn-primary h-9 min-h-9 px-4"
+                >
+                    "Choose"
+                </A>
             </td>
         </tr>
     }

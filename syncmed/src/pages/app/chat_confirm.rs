@@ -1,12 +1,20 @@
 use leptos::prelude::*;
 use leptos_meta::Title;
-use leptos_router::components::A;
+use leptos_router::{components::A, hooks::use_query_map};
 
 const MEDICINE_IMAGE_URL: &str =
     "https://www.figma.com/api/mcp/asset/805648dc-bced-4bde-bf77-9325d2c0ce72";
 
 #[component]
 pub fn AppChatConfirmPage() -> impl IntoView {
+    let query = use_query_map();
+    let patient_key = Memo::new(move |_| {
+        query
+            .get()
+            .get("patient-id")
+            .unwrap_or_else(String::new)
+    });
+
     view! {
         <Title text="Chat Confirm - SyncMed"/>
         <main class="min-h-screen bg-custom-subtle-background text-custom-foreground">
@@ -28,7 +36,17 @@ pub fn AppChatConfirmPage() -> impl IntoView {
                     </div>
 
                     <div class="pb-6 text-center">
-                        <A href="/app/confirm-success-page" attr:class="btn btn-primary px-10 text-5xl font-bold">
+                        <A
+                            href=move || {
+                                let key = patient_key.get();
+                                if key.trim().is_empty() {
+                                    "/app/confirm-success-page".to_string()
+                                } else {
+                                    format!("/app/confirm-success-page?patient-id={key}")
+                                }
+                            }
+                            attr:class="btn btn-primary px-10 text-5xl font-bold"
+                        >
                             "Confirm and Upload"
                         </A>
                     </div>

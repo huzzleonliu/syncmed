@@ -1,6 +1,6 @@
 use leptos::prelude::*;
 use leptos_meta::Title;
-use leptos_router::components::A;
+use leptos_router::{components::A, hooks::use_query_map};
 
 const LOGO_GROUP_URL: &str =
     "https://www.figma.com/api/mcp/asset/4ca73d88-9905-4c0a-90d5-59d7045b9d61";
@@ -11,6 +11,14 @@ const SUCCESS_ICON_URL: &str =
 
 #[component]
 pub fn AppConfirmSuccessPage() -> impl IntoView {
+    let query = use_query_map();
+    let patient_key = Memo::new(move |_| {
+        query
+            .get()
+            .get("patient-id")
+            .unwrap_or_else(String::new)
+    });
+
     view! {
         <Title text="App Confirm Success - SyncMed"/>
         <main class="min-h-screen bg-custom-subtle-background text-custom-foreground">
@@ -45,7 +53,17 @@ pub fn AppConfirmSuccessPage() -> impl IntoView {
                             </div>
                         </div>
 
-                        <A href="/app/chat-default" attr:class="btn btn-neutral border-custom-border bg-custom-background px-8 text-2xl font-light text-custom-foreground">
+                        <A
+                            href=move || {
+                                let key = patient_key.get();
+                                if key.trim().is_empty() {
+                                    "/app/chat-default".to_string()
+                                } else {
+                                    format!("/app/chat-default?patient-id={key}")
+                                }
+                            }
+                            attr:class="btn btn-neutral border-custom-border bg-custom-background px-8 text-2xl font-light text-custom-foreground"
+                        >
                             "↖ Back"
                         </A>
                     </div>
