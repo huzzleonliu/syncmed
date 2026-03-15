@@ -179,6 +179,7 @@ pub async fn get_patient_card_details(
             },
         };
         use axum::Extension;
+        use chrono::Utc;
         use diesel::prelude::*;
         use diesel_async::RunQueryDsl;
         use leptos_axum::extract;
@@ -191,11 +192,24 @@ pub async fn get_patient_card_details(
             .await
             .map_err(|e| ServerFnError::new(format!("pool get failed: {e}")))?;
 
-        let patient: PatientCase = patient_dsl::patient
+        let mut patient: PatientCase = patient_dsl::patient
             .filter(patient_dsl::patient_key.eq(&patient_key))
             .first(&mut conn)
             .await
             .map_err(|e| ServerFnError::new(format!("patient query failed: {e}")))?;
+
+        if patient.status == "filled" {
+            diesel::update(patient_dsl::patient.filter(patient_dsl::id.eq(patient.id)))
+                .set((
+                    patient_dsl::status.eq("processed"),
+                    patient_dsl::modified_at.eq(Some(Utc::now().naive_utc())),
+                ))
+                .execute(&mut conn)
+                .await
+                .map_err(|e| ServerFnError::new(format!("update status failed: {e}")))?;
+
+            patient.status = "processed".to_string();
+        }
 
         let medications: Vec<CaseMedication> = meds_dsl::case_medications
             .filter(meds_dsl::patient_id.eq(patient.id))

@@ -96,18 +96,6 @@ pub fn WindowsWidgetPage() -> impl IntoView {
                             }
                         >
                             <div class="rounded-[22px] border border-custom-ring bg-custom-subtle-background p-4 shadow-[0_16px_35px_rgba(0,0,0,0.16)] animate-[fadeIn_160ms_ease-out]">
-                                <div class="mb-3 flex items-center gap-3">
-                                    <SyncMedTile badge_count=move || {
-                                        filled_count
-                                            .get()
-                                            .and_then(|res| res.ok())
-                                            .unwrap_or(0)
-                                    }/>
-                                    <div>
-                                        <p class="text-sm font-semibold text-custom-foreground">"SyncMed Widget"</p>
-                                        <p class="text-xs text-custom-primary">"Select entry to continue"</p>
-                                    </div>
-                                </div>
                                 <PatientListCard/>
                             </div>
                         </div>

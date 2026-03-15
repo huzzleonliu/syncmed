@@ -146,12 +146,8 @@ fn PatientRow(
 
                         #[cfg(target_arch = "wasm32")]
                         {
-                            let status_now = status.clone();
                             let key_now = patient_key.clone();
                             leptos::task::spawn_local(async move {
-                                if status_now == "filled" {
-                                    let _ = mark_patient_processed(key_now.clone()).await;
-                                }
                                 if let Some(window) = web_sys::window() {
                                     if let Ok(Some(storage)) = window.local_storage() {
                                         let _ = storage.set_item("last_patient_key", &key_now);
@@ -282,49 +278,6 @@ pub async fn get_patients_for_browse(
     {
         Err(ServerFnError::new(
             "get_patients_for_browse is only available on the server".to_string(),
-        ))
-    }
-}
-
-#[server(MarkPatientProcessed, "/api")]
-pub async fn mark_patient_processed(patient_key: String) -> Result<(), ServerFnError> {
-    #[cfg(feature = "ssr")]
-    {
-        use crate::db::{DbPool, schema::patient::dsl as patient_dsl};
-        use axum::Extension;
-        use chrono::Utc;
-        use diesel::prelude::*;
-        use diesel_async::RunQueryDsl;
-        use leptos_axum::extract;
-
-        let Extension(pool) = extract::<Extension<DbPool>>()
-            .await
-            .map_err(|e| ServerFnError::new(format!("pool extract failed: {e}")))?;
-
-        let mut conn = pool
-            .get()
-            .await
-            .map_err(|e| ServerFnError::new(format!("pool get failed: {e}")))?;
-
-        diesel::update(
-            patient_dsl::patient
-                .filter(patient_dsl::patient_key.eq(patient_key))
-                .filter(patient_dsl::status.eq("filled")),
-        )
-        .set((
-            patient_dsl::status.eq("processed"),
-            patient_dsl::modified_at.eq(Some(Utc::now().naive_utc())),
-        ))
-        .execute(&mut conn)
-        .await
-        .map_err(|e| ServerFnError::new(format!("update status failed: {e}")))?;
-
-        Ok(())
-    }
-    #[cfg(not(feature = "ssr"))]
-    {
-        Err(ServerFnError::new(
-            "mark_patient_processed is only available on the server".to_string(),
         ))
     }
 }
