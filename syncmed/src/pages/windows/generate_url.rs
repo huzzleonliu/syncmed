@@ -1,7 +1,7 @@
 use leptos::prelude::*;
 use leptos_meta::Title;
 use leptos_router::components::A;
-use serde::{Deserialize, Serialize};
+use crate::services::patient::create_patient_entry;
 
 #[component]
 pub fn WindowsGenerateUrlPage() -> impl IntoView {
@@ -10,6 +10,8 @@ pub fn WindowsGenerateUrlPage() -> impl IntoView {
     let (gender, set_gender) = signal(String::new());
     let (generated_url, set_generated_url) = signal(String::new());
     let (error_text, set_error_text) = signal(String::new());
+    #[cfg(not(target_arch = "wasm32"))]
+    let _ = &create_patient_entry;
 
     view! {
         <Title text="Windows Generate URL - SyncMed"/>
@@ -66,7 +68,7 @@ pub fn WindowsGenerateUrlPage() -> impl IntoView {
                                 #[cfg(target_arch = "wasm32")]
                                 {
                                     leptos::task::spawn_local(async move {
-                                        match generate_patient_url(req_name, req_age, req_gender).await {
+                                        match create_patient_entry(req_name, req_age, req_gender).await {
                                             Ok(payload) => set_generated_url.set(payload.url),
                                             Err(err) => set_error_text.set(err.to_string()),
                                         }
@@ -142,84 +144,3 @@ pub fn WindowsGenerateUrlPage() -> impl IntoView {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct GenerateUrlResponse {
-    pub url: String,
-    pub patient_key: String,
-}
-
-#[server(GeneratePatientUrl, "/api")]
-pub async fn generate_patient_url(
-    name: String,
-    age: String,
-    gender: String,
-) -> Result<GenerateUrlResponse, ServerFnError> {
-    #[cfg(feature = "ssr")]
-    {
-        use crate::db::{DbPool, models::NewPatientCase, schema::patient::dsl as patient_dsl};
-        use axum::Extension;
-        use chrono::Utc;
-        use diesel_async::RunQueryDsl;
-        use leptos_axum::extract;
-        use sha2::{Digest, Sha256};
-
-        let name = name.trim().to_string();
-        let gender = gender.trim().to_string();
-        let age_num = age
-            .trim()
-            .parse::<i32>()
-            .map_err(|_| ServerFnError::new("Age must be a valid number"))?;
-
-        if name.is_empty() || gender.is_empty() {
-            return Err(ServerFnError::new("Name and gender are required"));
-        }
-
-        let now = Utc::now().naive_utc();
-        let nonce: u64 = rand::random();
-        let source = format!(
-            "{name}|{age_num}|{gender}|{}|{nonce}",
-            now.and_utc().timestamp()
-        );
-
-        let mut hasher = Sha256::new();
-        hasher.update(source.as_bytes());
-        let patient_key = format!("{:x}", hasher.finalize());
-
-        let Extension(pool) = extract::<Extension<DbPool>>()
-            .await
-            .map_err(|e| ServerFnError::new(format!("pool extract failed: {e}")))?;
-        let mut conn = pool
-            .get()
-            .await
-            .map_err(|e| ServerFnError::new(format!("pool get failed: {e}")))?;
-
-        let new_patient = NewPatientCase {
-            patient_key: patient_key.clone(),
-            doctor_user_id: None,
-            name_snapshot: name,
-            age_snapshot: age_num,
-            gender_snapshot: gender,
-            status: "sent".to_string(),
-            requested_at: now,
-            filled_at: None,
-            modified_at: Some(now),
-        };
-
-        diesel::insert_into(patient_dsl::patient)
-            .values(&new_patient)
-            .execute(&mut conn)
-            .await
-            .map_err(|e| ServerFnError::new(format!("insert patient failed: {e}")))?;
-
-        Ok(GenerateUrlResponse {
-            url: format!("https://app.syncmed.no/app?patient-id={patient_key}"),
-            patient_key,
-        })
-    }
-    #[cfg(not(feature = "ssr"))]
-    {
-        Err(ServerFnError::new(
-            "generate_patient_url is only available on the server".to_string(),
-        ))
-    }
-}

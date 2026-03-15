@@ -172,19 +172,32 @@ pub async fn get_confirm_identity_data(
 fn ConfirmPanel(
     patient_key: String,
 ) -> impl IntoView {
+    let (confirm_identity_checked, set_confirm_identity_checked) = signal(false);
+    let (agree_terms_checked, set_agree_terms_checked) = signal(false);
     let (need_accessibility, set_need_accessibility) = signal(false);
+    let can_confirm = Memo::new(move |_| confirm_identity_checked.get() && agree_terms_checked.get());
 
     view! {
         <div class="flex w-full max-w-[460px] flex-col gap-5 rounded-xl bg-custom-background/25 p-2 md:p-0">
             <label class="label cursor-pointer justify-start gap-3 md:gap-4">
-                <input type="checkbox" checked=true class="checkbox checkbox-primary checkbox-sm md:checkbox-md rounded-[10px]"/>
+                <input
+                    type="checkbox"
+                    class="checkbox checkbox-primary checkbox-sm md:checkbox-md rounded-[10px]"
+                    prop:checked=move || confirm_identity_checked.get()
+                    on:change=move |ev| set_confirm_identity_checked.set(event_target_checked(&ev))
+                />
                 <span class="label-text text-lg font-light text-custom-primary md:text-2xl">
                     "I confirm the personal information is correct"
                 </span>
             </label>
 
             <label class="label cursor-pointer justify-start gap-3 md:gap-4">
-                <input type="checkbox" class="checkbox checkbox-primary checkbox-sm md:checkbox-md rounded-[10px]"/>
+                <input
+                    type="checkbox"
+                    class="checkbox checkbox-primary checkbox-sm md:checkbox-md rounded-[10px]"
+                    prop:checked=move || agree_terms_checked.get()
+                    on:change=move |ev| set_agree_terms_checked.set(event_target_checked(&ev))
+                />
                 <span class="label-text text-lg font-light text-custom-primary md:text-2xl">
                     "I agree to the Terms of Service and Privacy Policy."
                 </span>
@@ -203,24 +216,48 @@ fn ConfirmPanel(
             </div>
 
             <div class="flex justify-center pt-1 md:pt-3">
-                <A
-                    href=move || {
+                <button
+                    type="button"
+                    class=move || {
+                        let state_cls = if can_confirm.get() {
+                            "btn-primary"
+                        } else {
+                            "btn-disabled bg-base-300 border-base-300 text-base-content/50"
+                        };
+                        format!(
+                            "btn {state_cls} h-12 min-h-12 px-8 text-xl font-medium md:h-[87px] md:min-h-[87px] md:px-12 md:text-4xl"
+                        )
+                    }
+                    disabled=move || !can_confirm.get()
+                    on:click=move |_| {
+                        if !can_confirm.get_untracked() {
+                            return;
+                        }
                         let key = patient_key.clone();
                         let suffix = if key.trim().is_empty() {
                             "".to_string()
                         } else {
                             format!("?patient-id={key}")
                         };
-                        if need_accessibility.get() {
+                        let target = if need_accessibility.get_untracked() {
                             format!("/app/chat-accessibility{suffix}")
                         } else {
                             format!("/app/chat-default{suffix}")
+                        };
+                        #[cfg(target_arch = "wasm32")]
+                        {
+                            if let Some(window) = web_sys::window() {
+                                let _ = window.location().set_href(&target);
+                            }
+                        }
+                        #[cfg(not(target_arch = "wasm32"))]
+                        {
+                            let _ = target;
                         }
                     }
-                    attr:class="btn btn-primary h-12 min-h-12 px-8 text-xl font-medium md:h-[87px] md:min-h-[87px] md:px-12 md:text-4xl"
                 >
                     "Confirm"
-                </A>
+                </button>
             </div>
 
             <div class="flex justify-center">

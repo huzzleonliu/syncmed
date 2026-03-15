@@ -2,6 +2,7 @@ use leptos::prelude::*;
 use leptos_meta::Title;
 use leptos_router::components::A;
 use serde::{Deserialize, Serialize};
+use crate::services::patient::create_patient_entry;
 
 const LOGO_GROUP_URL: &str =
     "https://www.figma.com/api/mcp/asset/7b60b857-7bc2-4087-acab-4d5c37a8a322";
@@ -50,6 +51,13 @@ pub fn AppInputPage() -> impl IntoView {
 
 #[component]
 fn CreateEntryCard() -> impl IntoView {
+    let (name, set_name) = signal(String::new());
+    let (age, set_age) = signal(String::new());
+    let (gender, set_gender) = signal("female".to_string());
+    let (error_text, set_error_text) = signal(String::new());
+    #[cfg(not(target_arch = "wasm32"))]
+    let _ = (&create_patient_entry, &set_gender);
+
     view! {
         <div class=format!("{} {} {} {} ", 
             // Layout
@@ -68,6 +76,8 @@ fn CreateEntryCard() -> impl IntoView {
                         type="text"
                         placeholder="Patient Name"
                         class="input input-bordered h-9 w-full border-custom-ring bg-custom-background text-custom-accent-foreground focus:outline-none"
+                        prop:value=move || name.get()
+                        on:input=move |ev| set_name.set(event_target_value(&ev))
                     />
                 </label>
 
@@ -79,12 +89,18 @@ fn CreateEntryCard() -> impl IntoView {
                             min="0"
                             placeholder="Age"
                             class="input input-bordered h-9 w-full border-custom-ring bg-custom-background text-custom-accent-foreground focus:outline-none"
+                            prop:value=move || age.get()
+                            on:input=move |ev| set_age.set(event_target_value(&ev))
                         />
                     </label>
 
                     <label class="form-control">
                         <span class="label-text mb-2 text-base font-medium text-custom-foreground">"Gender"</span>
-                        <select class="select select-bordered h-9 min-h-9 w-full border-custom-ring bg-custom-background text-custom-accent-foreground focus:outline-none">
+                        <select
+                            class="select select-bordered h-9 min-h-9 w-full border-custom-ring bg-custom-background text-custom-accent-foreground focus:outline-none"
+                            prop:value=move || gender.get()
+                            on:change=move |ev| set_gender.set(event_target_value(&ev))
+                        >
                             <option value="female">"Female"</option>
                             <option value="male">"Male"</option>
                             <option value="other">"Other"</option>
@@ -93,8 +109,45 @@ fn CreateEntryCard() -> impl IntoView {
                 </div>
 
                 <div class="mt-2 flex justify-end">
-                    <A href="/app/confirm-identity" attr:class="btn btn-primary h-9 min-h-9 px-6">"Create"</A>
+                    <button
+                        type="button"
+                        class="btn btn-primary h-9 min-h-9 px-6"
+                        on:click=move |_| {
+                            set_error_text.set(String::new());
+                            let req_name = name.get_untracked();
+                            let req_age = age.get_untracked();
+                            let req_gender = gender.get_untracked();
+
+                            #[cfg(target_arch = "wasm32")]
+                            {
+                                leptos::task::spawn_local(async move {
+                                    match create_patient_entry(req_name, req_age, req_gender).await {
+                                        Ok(payload) => {
+                                            if let Some(window) = web_sys::window() {
+                                                let _ = window
+                                                    .location()
+                                                    .set_href(&format!("/app/confirm-identity?patient-id={}", payload.patient_key));
+                                            }
+                                        }
+                                        Err(err) => set_error_text.set(err.to_string()),
+                                    }
+                                });
+                            }
+
+                            #[cfg(not(target_arch = "wasm32"))]
+                            {
+                                let _ = (req_name, req_age, req_gender);
+                                set_error_text
+                                    .set("Create entry is available after hydration.".to_string());
+                            }
+                        }
+                    >
+                        "Create"
+                    </button>
                 </div>
+                <Show when=move || !error_text.get().is_empty()>
+                    <p class="text-sm text-red-600">{move || error_text.get()}</p>
+                </Show>
             </div>
         </div>
     }
