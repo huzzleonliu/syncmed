@@ -40,9 +40,9 @@ pub fn AppChatAccessibilityPage() -> impl IntoView {
 
     view! {
         <Title text="App Chat Accessibility - SyncMed"/>
-        <main class="min-h-screen bg-custom-subtle-background text-custom-foreground">
-            <section class="mx-auto w-full max-w-[1326px] px-2 py-2 md:px-4 md:py-4">
-                <div class="card overflow-hidden border border-custom-ring bg-custom-background shadow-md">
+        <main class="h-dvh bg-custom-subtle-background text-custom-foreground">
+            <section class="mx-auto h-full w-full max-w-[1326px] px-2 py-2 md:px-4 md:py-4">
+                <div class="card h-full min-h-0 overflow-hidden border border-custom-ring bg-custom-background shadow-md">
                     <div class="flex flex-col gap-3 border-b border-custom-border p-3 md:flex-row md:items-center md:justify-between md:p-4">
                         <h2 class="text-xl font-bold md:text-2xl">"Medication Reconciliation"</h2>
                         <div class="flex items-center gap-2 self-end md:self-auto">
@@ -75,9 +75,9 @@ pub fn AppChatAccessibilityPage() -> impl IntoView {
                         </div>
                     </div>
 
-                    <div class="bg-custom-subtle-background p-2 md:p-3">
-                        <div class="rounded-lg bg-custom-background lg:grid lg:min-h-[620px] lg:grid-cols-2 lg:gap-6">
-                            <div class="space-y-1 p-1 md:space-y-2 md:p-2 lg:space-y-2 lg:p-3">
+                    <div class="min-h-0 flex-1 bg-custom-subtle-background p-2 md:p-3">
+                        <div class="h-full min-h-0 rounded-lg bg-custom-background lg:grid lg:grid-cols-2 lg:gap-6">
+                            <div class="min-h-0 space-y-1 overflow-y-auto p-1 md:space-y-2 md:p-2 lg:space-y-2 lg:p-3">
                                 {move || {
                                     let items = messages_store.get();
                                     if items.is_empty() {
@@ -102,7 +102,7 @@ pub fn AppChatAccessibilityPage() -> impl IntoView {
                                 }}
                             </div>
 
-                            <div class="mt-2 border-t border-custom-border p-3 md:p-4 lg:mt-0 lg:border-l lg:border-t-0 lg:p-6">
+                            <div class="mt-2 min-h-0 overflow-y-auto border-t border-custom-border p-3 md:p-4 lg:mt-0 lg:border-l lg:border-t-0 lg:p-6">
                                 <div class="mx-auto grid w-fit grid-cols-3 gap-x-3 gap-y-2 md:gap-x-8">
                                     <KeyPadButton main="1" sub=""/>
                                     <KeyPadButton main="2" sub="ABC"/>

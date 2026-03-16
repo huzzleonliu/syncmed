@@ -4,8 +4,7 @@ use leptos_router::components::A;
 use serde::{Deserialize, Serialize};
 use crate::services::patient::create_patient_entry;
 
-const LOGO_GROUP_URL: &str =
-    "https://www.figma.com/api/mcp/asset/7b60b857-7bc2-4087-acab-4d5c37a8a322";
+const LOGO_GROUP_URL: &str = "/logo.svg";
 const AVATAR_IMAGE_URL: &str =
     "https://www.figma.com/api/mcp/asset/73c194b0-97fd-42e5-a422-370d22b926ef";
 
@@ -36,9 +35,13 @@ pub fn AppInputPage() -> impl IntoView {
             </header>
 
             <section class="mx-auto w-full max-w-[1280px] px-4 py-8 md:px-6 md:py-10 flex-1 min-h-0">
-                <div class="grid gap-6 lg:grid-cols-[1fr_500px]">
-                    <CreateEntryCard/>
-                    <PatientListCard/>
+                <div class="grid h-full min-h-0 gap-6 lg:grid-cols-[3fr_7fr]">
+                    <div class="min-h-0 overflow-auto">
+                        <CreateEntryCard/>
+                    </div>
+                    <div class="min-h-0 overflow-auto">
+                        <PatientListCard/>
+                    </div>
                 </div>
             </section>
 
@@ -158,13 +161,13 @@ fn PatientListCard() -> impl IntoView {
     let patient_list = Resource::new(|| (), |_| get_app_patient_list());
 
     view! {
-        <div class="card rounded-xl border border-custom-border bg-custom-background shadow-sm">
+        <div class="card rounded-xl border border-custom-ring bg-custom-background shadow-sm">
             <div class="border-b border-custom-border px-5 py-3 md:px-6">
                 <h3 class="text-lg font-bold text-custom-foreground">"patient list"</h3>
             </div>
 
             <div class="overflow-x-auto">
-                <table class="table table-zebra">
+                <table class="table">
                     <thead>
                         <tr class="text-base font-semibold text-custom-foreground">
                             <th>"Name"</th>
@@ -176,7 +179,7 @@ fn PatientListCard() -> impl IntoView {
                     </thead>
                     <tbody>
                         <Suspense fallback=move || view! {
-                            <tr class="text-base text-custom-foreground">
+                            <tr class="bg-custom-subtle-background text-base text-custom-foreground">
                                 <td colspan="5" class="text-center text-custom-muted-foreground">"Loading..."</td>
                             </tr>
                         }>
@@ -184,7 +187,7 @@ fn PatientListCard() -> impl IntoView {
                                 Some(Ok(items)) => {
                                     if items.is_empty() {
                                         view! {
-                                            <tr class="text-base text-custom-foreground">
+                                            <tr class="bg-custom-subtle-background text-base text-custom-foreground">
                                                 <td colspan="5" class="text-center text-custom-muted-foreground">
                                                     "No patient entries"
                                                 </td>
@@ -209,14 +212,14 @@ fn PatientListCard() -> impl IntoView {
                                     }
                                 }
                                 Some(Err(err)) => view! {
-                                    <tr class="text-base text-custom-foreground">
+                                    <tr class="bg-custom-subtle-background text-base text-custom-foreground">
                                         <td colspan="5" class="text-center text-red-600">
                                             {format!("Failed to load patient list: {err}")}
                                         </td>
                                     </tr>
                                 }.into_any(),
                                 None => view! {
-                                    <tr class="text-base text-custom-foreground">
+                                    <tr class="bg-custom-subtle-background text-base text-custom-foreground">
                                         <td colspan="5" class="text-center text-custom-muted-foreground">"Loading..."</td>
                                     </tr>
                                 }.into_any(),
@@ -238,7 +241,7 @@ fn PatientRow(
     creator: String,
 ) -> impl IntoView {
     view! {
-        <tr class="text-base text-custom-foreground">
+        <tr class="bg-custom-subtle-background text-base text-custom-foreground">
             <td>{name}</td>
             <td>{age}</td>
             <td>{gender}</td>

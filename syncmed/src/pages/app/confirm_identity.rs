@@ -3,8 +3,7 @@ use leptos_meta::Title;
 use leptos_router::{components::A, hooks::use_query_map};
 use serde::{Deserialize, Serialize};
 
-const LOGO_GROUP_URL: &str =
-    "https://www.figma.com/api/mcp/asset/6f805919-02fb-42fa-bff3-e0bb62fe4a2b";
+const LOGO_GROUP_URL: &str = "/logo.svg";
 const AVATAR_IMAGE_URL: &str =
     "https://www.figma.com/api/mcp/asset/37f0cd67-8cb9-4fcc-a62e-abf8704a6046";
 const HELLO_ICON_URL: &str =

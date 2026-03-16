@@ -12,8 +12,7 @@ use crate::services::chat::{save_chat_history, save_local_medications};
 #[cfg(target_arch = "wasm32")]
 use crate::services::chat::{clear_local_chat_bundle, upload_local_chat_and_medications};
 
-const LOGO_GROUP_URL: &str =
-    "https://www.figma.com/api/mcp/asset/a5f3a6b1-a02e-4798-b13a-32da13edf8de";
+const LOGO_GROUP_URL: &str = "/logo.svg";
 const AVATAR_IMAGE_URL: &str =
     "https://www.figma.com/api/mcp/asset/ab19cb29-0b34-41d7-94bc-003ced3c67f8";
 const MEDICINE_IMAGE_URL: &str =
@@ -32,8 +31,8 @@ pub fn AppChatDefaultPage() -> impl IntoView {
         .unwrap_or_else(|| RwSignal::new(Vec::<CaseMedicationPayload>::new()));
     view! {
         <Title text="App Chat Default - SyncMed"/>
-        <main class="min-h-screen bg-custom-subtle-background text-custom-foreground">
-            <header class="border-b border-custom-border bg-custom-card">
+        <main class="h-dvh bg-custom-subtle-background text-custom-foreground flex flex-col">
+            <header class="shrink-0 border-b border-custom-border bg-custom-card">
                 <div class="mx-auto flex h-[85px] w-full max-w-[1280px] items-center justify-between px-4 md:px-6">
                     <div class="flex items-center gap-3">
                         <img src=LOGO_GROUP_URL alt="SyncMed Logo" class="h-8 w-8 object-contain"/>
@@ -53,14 +52,18 @@ pub fn AppChatDefaultPage() -> impl IntoView {
                 </div>
             </header>
 
-            <section class="mx-auto w-full max-w-[1280px] px-4 py-6 md:px-6 md:py-8">
-                <div class="grid gap-4 lg:grid-cols-[2fr_1fr]">
-                    <ChatPanel patient_key=patient_key.get_untracked() medications_store=medications_store/>
-                    <MedicationPanel patient_key=patient_key.get_untracked() medications_store=medications_store/>
+            <section class="mx-auto w-full max-w-[1280px] px-4 py-6 md:px-6 md:py-8 flex-1 min-h-0">
+                <div class="grid h-full min-h-0 gap-4 lg:grid-cols-[2fr_1fr]">
+                    <div class="min-h-0 overflow-auto">
+                        <ChatPanel patient_key=patient_key.get_untracked() medications_store=medications_store/>
+                    </div>
+                    <div class="min-h-0 overflow-auto">
+                        <MedicationPanel patient_key=patient_key.get_untracked() medications_store=medications_store/>
+                    </div>
                 </div>
             </section>
 
-            <footer class="border-t border-custom-border bg-custom-card px-6 py-8 text-center text-sm text-custom-muted-foreground">
+            <footer class="shrink-0 border-t border-custom-border bg-custom-card px-6 py-8 text-center text-sm text-custom-muted-foreground">
                 "© 2026 SyncMed. All rights reserved."
             </footer>
         </main>
@@ -89,7 +92,7 @@ fn ChatPanel(
     }
 
     view! {
-        <div class="card border border-custom-border bg-custom-background shadow-sm">
+        <div class="card flex h-full min-h-0 flex-col border border-custom-border bg-custom-background shadow-sm">
             <div class="flex items-center justify-between border-b border-custom-border p-4">
                 <h2 class="text-xl font-bold text-custom-foreground">"Medication Reconciliation"</h2>
                 <div class="flex items-center gap-2">
@@ -107,7 +110,7 @@ fn ChatPanel(
                 </div>
             </div>
 
-            <div class="space-y-4 p-4">
+            <div class="flex-1 min-h-0 space-y-4 overflow-y-auto p-4">
                 {move || {
                     let items = messages_store.get();
                     if items.is_empty() {

@@ -2,8 +2,7 @@ use leptos::prelude::*;
 use leptos_meta::Title;
 use leptos_router::{components::A, hooks::use_query_map};
 
-const LOGO_GROUP_URL: &str =
-    "https://www.figma.com/api/mcp/asset/4ca73d88-9905-4c0a-90d5-59d7045b9d61";
+const LOGO_GROUP_URL: &str = "/logo.svg";
 const AVATAR_IMAGE_URL: &str =
     "https://www.figma.com/api/mcp/asset/183ebd1f-0fd1-4713-832f-d3e1f9283e4e";
 const SUCCESS_ICON_URL: &str =

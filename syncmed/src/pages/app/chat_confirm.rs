@@ -26,14 +26,14 @@ pub fn AppChatConfirmPage() -> impl IntoView {
 
     view! {
         <Title text="Chat Confirm - SyncMed"/>
-        <main class="min-h-screen bg-custom-subtle-background text-custom-foreground">
-            <section class="mx-auto w-full max-w-[1024px] px-2 py-2 md:px-4 md:py-4">
-                <div class="card border border-custom-ring bg-custom-background shadow-md">
+        <main class="h-dvh bg-custom-subtle-background text-custom-foreground">
+            <section class="mx-auto h-full w-full max-w-[1024px] px-2 py-2 md:px-4 md:py-4">
+                <div class="card h-full min-h-0 border border-custom-ring bg-custom-background shadow-md">
                     <div class="border-b border-custom-border p-4 text-center">
                         <h2 class="text-5xl font-semibold">"Medication List"</h2>
                     </div>
 
-                    <div class="p-6">
+                    <div class="min-h-0 flex-1 overflow-y-auto p-6">
                         <div class="rounded-lg border-2 border-dashed border-custom-border bg-custom-card p-4">
                             {move || {
                                 let items = medications_store.get();
