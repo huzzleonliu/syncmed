@@ -2451,6 +2451,7 @@ dependencies = [
  "diesel-async",
  "diesel_migrations",
  "dotenvy",
+ "gloo-net",
  "http",
  "leptos",
  "leptos_axum",

@@ -1,9 +1,9 @@
 use leptos::prelude::*;
 use leptos_meta::Title;
 use leptos_router::{components::A, hooks::use_query_map};
-use crate::pages::app::chat_default::{
-    add_patient_chat_message, get_patient_chat_messages,
-};
+use crate::structure::chat::CaseChatMessageDraft;
+#[cfg(target_arch = "wasm32")]
+use crate::structure::chat::{ChatbotRequest, ChatbotResponse};
 
 const MEDICINE_IMAGE_URL: &str =
     "https://www.figma.com/api/mcp/asset/592defbd-fa4b-49d4-b550-c6a4ee112841";
@@ -18,22 +18,10 @@ pub fn AppChatAccessibilityPage() -> impl IntoView {
             .unwrap_or_else(String::new)
     });
     let (draft, set_draft) = signal(String::new());
-    let (reload_key, set_reload_key) = signal(0_u64);
-    let patient_key_for_resource = patient_key.clone();
+    let (messages, set_messages) = signal(Vec::<CaseChatMessageDraft>::new());
     let patient_key_for_send = patient_key.clone();
     #[cfg(not(target_arch = "wasm32"))]
-    let _ = &add_patient_chat_message;
-    #[cfg(not(target_arch = "wasm32"))]
-    let _ = &set_reload_key;
-    let chat_history = Resource::new(
-        move || (patient_key_for_resource.get(), reload_key.get()),
-        |(key, _)| async move {
-            if key.trim().is_empty() {
-                return Err(ServerFnError::new("Missing patient-id in URL"));
-            }
-            get_patient_chat_messages(key).await
-        },
-    );
+    let _ = &patient_key_for_send;
 
     view! {
         <Title text="App Chat Accessibility - SyncMed"/>
@@ -75,35 +63,28 @@ pub fn AppChatAccessibilityPage() -> impl IntoView {
                     <div class="bg-custom-subtle-background p-2 md:p-3">
                         <div class="rounded-lg bg-custom-background lg:grid lg:min-h-[620px] lg:grid-cols-2 lg:gap-6">
                             <div class="space-y-1 p-1 md:space-y-2 md:p-2 lg:space-y-2 lg:p-3">
-                                <Suspense fallback=move || view! { <p class="text-sm text-custom-muted-foreground">"Loading chat..."</p> }>
-                                    {move || match chat_history.get() {
-                                        Some(Ok(items)) => {
-                                            if items.is_empty() {
-                                                view! { <p class="text-sm text-custom-muted-foreground">"No chat messages yet."</p> }.into_any()
-                                            } else {
-                                                items
-                                                    .into_iter()
-                                                    .enumerate()
-                                                    .map(|(idx, item)| {
-                                                        view! {
-                                                            <AccBubble
-                                                                text=item.content_text
-                                                                time=item.created_at_text
-                                                                user=item.sender_type == "patient"
-                                                                with_medicine=idx == 0 && item.sender_type != "patient"
-                                                            />
-                                                        }
-                                                    })
-                                                    .collect_view()
-                                                    .into_any()
-                                            }
-                                        }
-                                        Some(Err(err)) => view! {
-                                            <p class="text-sm text-red-600">{format!("Failed to load chat: {err}")}</p>
-                                        }.into_any(),
-                                        None => view! { <p class="text-sm text-custom-muted-foreground">"Loading chat..."</p> }.into_any(),
-                                    }}
-                                </Suspense>
+                                {move || {
+                                    let items = messages.get();
+                                    if items.is_empty() {
+                                        view! { <p class="text-sm text-custom-muted-foreground">"No chat messages yet."</p> }.into_any()
+                                    } else {
+                                        items
+                                            .into_iter()
+                                            .enumerate()
+                                            .map(|(idx, item)| {
+                                                view! {
+                                                    <AccBubble
+                                                        text=item.content_text
+                                                        time=item.created_at
+                                                        user=item.sender_type == "patient"
+                                                        with_medicine=idx == 0 && item.sender_type != "patient"
+                                                    />
+                                                }
+                                            })
+                                            .collect_view()
+                                            .into_any()
+                                    }
+                                }}
                             </div>
 
                             <div class="mt-2 border-t border-custom-border p-3 md:p-4 lg:mt-0 lg:border-l lg:border-t-0 lg:p-6">
@@ -136,17 +117,114 @@ pub fn AppChatAccessibilityPage() -> impl IntoView {
                                         type="button"
                                         class="btn btn-primary"
                                         on:click=move |_| {
-                                            let key = patient_key_for_send.get_untracked();
                                             let text = draft.get_untracked().trim().to_string();
-                                            if key.trim().is_empty() || text.is_empty() {
+                                            if text.is_empty() {
                                                 return;
                                             }
                                             set_draft.set(String::new());
+                                            set_messages.update(|items| {
+                                                items.push(CaseChatMessageDraft {
+                                                    id: None,
+                                                    patient_id: None,
+                                                    sender_type: "patient".to_string(),
+                                                    content_text: text.clone(),
+                                                    created_at: "Now".to_string(),
+                                                });
+                                            });
                                             #[cfg(target_arch = "wasm32")]
                                             {
+                                                let set_messages = set_messages;
+                                                let key = patient_key_for_send.get_untracked();
                                                 leptos::task::spawn_local(async move {
-                                                    let _ = add_patient_chat_message(key, text).await;
-                                                    set_reload_key.update(|v| *v += 1);
+                                                    let payload = ChatbotRequest {
+                                                        message: text,
+                                                        patient_id: if key.trim().is_empty() {
+                                                            None
+                                                        } else {
+                                                            Some(key)
+                                                        },
+                                                    };
+                                                    let request = gloo_net::http::Request::post(
+                                                        "http://chatbot:3003/api/chat",
+                                                    )
+                                                    .header("content-type", "application/json")
+                                                    .json(&payload);
+
+                                                    match request {
+                                                        Ok(req) => match req.send().await {
+                                                            Ok(resp) => {
+                                                                match resp
+                                                                    .json::<ChatbotResponse>()
+                                                                    .await
+                                                                {
+                                                                    Ok(data) => {
+                                                                        set_messages.update(
+                                                                            |items| {
+                                                                                items.push(
+                                                                                    CaseChatMessageDraft {
+                                                                                        id: None,
+                                                                                        patient_id: None,
+                                                                                        sender_type: "bot"
+                                                                                            .to_string(),
+                                                                                        content_text: data.reply,
+                                                                                        created_at: data.timestamp,
+                                                                                    },
+                                                                                );
+                                                                            },
+                                                                        );
+                                                                    }
+                                                                    Err(err) => {
+                                                                        set_messages.update(
+                                                                            |items| {
+                                                                                items.push(
+                                                                                    CaseChatMessageDraft {
+                                                                                        id: None,
+                                                                                        patient_id: None,
+                                                                                        sender_type: "bot"
+                                                                                            .to_string(),
+                                                                                        content_text: format!(
+                                                                                            "机器人响应解析失败: {err}"
+                                                                                        ),
+                                                                                        created_at: "Now".to_string(),
+                                                                                    },
+                                                                                );
+                                                                            },
+                                                                        );
+                                                                    }
+                                                                }
+                                                            }
+                                                            Err(err) => {
+                                                                set_messages.update(|items| {
+                                                                    items.push(
+                                                                        CaseChatMessageDraft {
+                                                                            id: None,
+                                                                            patient_id: None,
+                                                                            sender_type: "bot"
+                                                                                .to_string(),
+                                                                            content_text: format!(
+                                                                                "请求机器人失败: {err}"
+                                                                            ),
+                                                                            created_at: "Now"
+                                                                                .to_string(),
+                                                                        },
+                                                                    );
+                                                                });
+                                                            }
+                                                        },
+                                                        Err(err) => {
+                                                            set_messages.update(|items| {
+                                                                items.push(CaseChatMessageDraft {
+                                                                    id: None,
+                                                                    patient_id: None,
+                                                                    sender_type: "bot".to_string(),
+                                                                    content_text: format!(
+                                                                        "构建请求失败: {err}"
+                                                                    ),
+                                                                    created_at: "Now".to_string(),
+                                                                });
+                                                            });
+                                                        }
+                                                    }
                                                 });
                                             }
                                         }
