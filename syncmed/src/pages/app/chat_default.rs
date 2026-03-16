@@ -9,6 +9,8 @@ use crate::structure::chat::{ChatbotRequest, ChatbotResponse};
 use crate::services::chat::{bootstrap_chat_state, merge_case_medications};
 #[cfg(target_arch = "wasm32")]
 use crate::services::chat::{save_chat_history, save_local_medications};
+#[cfg(target_arch = "wasm32")]
+use crate::services::chat::{clear_local_chat_bundle, upload_local_chat_and_medications};
 
 const LOGO_GROUP_URL: &str =
     "https://www.figma.com/api/mcp/asset/a5f3a6b1-a02e-4798-b13a-32da13edf8de";
@@ -397,6 +399,11 @@ fn MedicationPanel(
     patient_key: String,
     medications_store: RwSignal<Vec<CaseMedicationPayload>>,
 ) -> impl IntoView {
+    let messages_store = use_context::<RwSignal<Vec<CaseChatMessageDraft>>>()
+        .unwrap_or_else(|| RwSignal::new(Vec::<CaseChatMessageDraft>::new()));
+    let (upload_error, set_upload_error) = signal(String::new());
+    let (uploading, set_uploading) = signal(false);
+
     view! {
         <div class="card border border-custom-border bg-custom-background shadow-sm">
             <div class="border-b border-custom-border p-4">
@@ -425,15 +432,74 @@ fn MedicationPanel(
 
             <div class="p-4 pt-0">
                 <A
-                    href=if patient_key.trim().is_empty() {
-                        "/app/confirm-success-page".to_string()
-                    } else {
-                        format!("/app/confirm-success-page?patient-id={patient_key}")
+                    href="#"
+                    attr:class=move || {
+                        if uploading.get() {
+                            "btn btn-disabled w-full".to_string()
+                        } else {
+                            "btn btn-primary w-full".to_string()
+                        }
                     }
-                    attr:class="btn btn-primary w-full"
+                    on:click=move |ev| {
+                        ev.prevent_default();
+                        if uploading.get_untracked() {
+                            return;
+                        }
+                        set_upload_error.set(String::new());
+                        set_uploading.set(true);
+                        let key = patient_key.clone();
+                        let messages = messages_store.get_untracked();
+                        let medications = medications_store.get_untracked();
+                        #[cfg(not(target_arch = "wasm32"))]
+                        let _ = (
+                            key,
+                            messages,
+                            medications,
+                            &set_upload_error,
+                            &set_uploading,
+                        );
+
+                        #[cfg(target_arch = "wasm32")]
+                        {
+                            let messages_store = messages_store;
+                            let medications_store = medications_store;
+                            let set_upload_error = set_upload_error;
+                            let set_uploading = set_uploading;
+                            leptos::task::spawn_local(async move {
+                                let result = upload_local_chat_and_medications(
+                                    key.clone(),
+                                    messages,
+                                    medications,
+                                )
+                                .await;
+                                match result {
+                                    Ok(_) => {
+                                        clear_local_chat_bundle(&key);
+                                        messages_store.set(Vec::new());
+                                        medications_store.set(Vec::new());
+                                        if let Some(window) = web_sys::window() {
+                                            let target = if key.trim().is_empty() {
+                                                "/app/confirm-success-page".to_string()
+                                            } else {
+                                                format!("/app/confirm-success-page?patient-id={key}")
+                                            };
+                                            let _ = window.location().set_href(&target);
+                                        }
+                                    }
+                                    Err(err) => {
+                                        set_upload_error.set(format!("Upload failed: {err}"));
+                                    }
+                                }
+                                set_uploading.set(false);
+                            });
+                        }
+                    }
                 >
                     "Confirm and Upload"
                 </A>
+                <Show when=move || !upload_error.get().is_empty()>
+                    <p class="mt-2 text-center text-sm text-red-600">{move || upload_error.get()}</p>
+                </Show>
             </div>
         </div>
     }

@@ -45,7 +45,7 @@ pub fn WindowsCardDetailsPage() -> impl IntoView {
 
                             <div class="border-b border-black/10 pb-4">
                                 <h2 class="mb-4 text-2xl font-semibold text-black/85">"Medication List"</h2>
-                                <div class="overflow-x-auto rounded-lg">
+                                <div class="min-h-0 flex-1 overflow-auto rounded-lg">
                                     <table class="table table-sm w-full text-[13px] text-black/85">
                                         <thead class="text-black/90">
                                             <tr>
@@ -92,7 +92,7 @@ pub fn WindowsCardDetailsPage() -> impl IntoView {
 
                             <div>
                                 <h2 class="mb-4 text-2xl font-semibold text-black/85">"Chat History"</h2>
-                                <div class="space-y-3">
+                                <div class="space-y-3 min-h-0 flex-1 overflow-auto rounded-lg">
                                     {if data.chat_messages.is_empty() {
                                         view! {
                                             <div class="rounded border border-black/10 bg-white/70 p-4 text-[13px] text-black/60">

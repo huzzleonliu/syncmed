@@ -13,8 +13,8 @@ pub fn WindowsBrowsePatientEntryPage() -> impl IntoView {
             <h1 class="text-[28px] font-semibold text-black/85">"Patient Entries"</h1>
         </div>
 
-        <div class="flex-1 overflow-auto px-6 pb-10 lg:px-8">
-            <div class="space-y-5">
+        <div class="flex h-full min-h-0 flex-1 flex-col px-6 pb-10 lg:px-8">
+            <div class="flex min-h-0 flex-1 flex-col gap-5">
                 <div class="flex flex-wrap items-end justify-between gap-4 border-b border-black/10 pb-4">
                     <div class="card w-[120px] border border-black/10 bg-white shadow-md">
                         <div class="card-body items-center gap-1 p-3">
@@ -58,8 +58,8 @@ pub fn WindowsBrowsePatientEntryPage() -> impl IntoView {
                     </div>
                 </div>
 
-                <div class="overflow-x-auto rounded-lg">
-                    <table class="table table-sm w-full text-[13px] text-black/85">
+                <div class="min-h-0 flex-1 overflow-auto rounded-lg border border-black/10 bg-white">
+                    <table class="table table-sm w-full min-w-[860px] text-[13px] text-black/85">
                         <thead class="text-black/90">
                             <tr>
                                 <th>"Name"</th>

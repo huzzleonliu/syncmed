@@ -95,7 +95,7 @@ pub fn WindowsLayout() -> impl IntoView {
                         </div>
                     </div>
 
-                    <div class="flex min-h-[680px] flex-col lg:min-h-[760px] lg:flex-row">
+                    <div class="flex h-[680px] min-h-0 flex-col lg:h-[760px] lg:flex-row">
                         <aside class="w-full border-b border-black/10 bg-white p-2 lg:w-[280px] lg:border-b-0 lg:border-r lg:border-black/10">
                             <nav class="space-y-1 text-sm">
                                 <A href="/windows/login" attr:class=nav_class("/windows/login")>"Login"</A>
@@ -108,7 +108,7 @@ pub fn WindowsLayout() -> impl IntoView {
                             </nav>
                         </aside>
 
-                        <section class="flex flex-1 flex-col bg-[#f5f5f5]">
+                        <section class="flex min-h-0 flex-1 flex-col overflow-y-auto bg-[#f5f5f5]">
                             <Outlet/>
                         </section>
                     </div>

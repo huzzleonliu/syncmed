@@ -64,13 +64,15 @@ pub fn WindowsWidgetPage() -> impl IntoView {
             <img
                 src="/medical-system.png"
                 alt="Medical system overlay"
-                class="pointer-events-none absolute bottom-0 left-1/2 w-[100vw] max-w-none -translate-x-1/2 border-t border-black/10 object-cover shadow-md"
+                class="pointer-events-none absolute top-0 left-1/2 w-[100vw] max-w-none -translate-x-1/2 border-t border-black/10 object-cover shadow-md"
             />
 
             <section class="relative min-h-screen">
                 <button
                     type="button"
-                    class="absolute z-20 flex h-14 w-14 items-center justify-center rounded-2xl border border-custom-ring bg-custom-background/90 shadow-lg backdrop-blur transition-shadow hover:shadow-xl"
+                    class="absolute z-10 flex h-14 w-14 items-center justify-center rounded-2xl border 
+                    border-white/35 bg-white/6 shadow-[0_12px_28px_rgba(6,24,44,0.35)] backdrop-blur-sm 
+                    backdrop-saturate-200 transition-shadow hover:shadow-[0_16px_34px_rgba(6,24,44,0.45)]"
                     style=move || {
                         let (x, y) = position.get();
                         format!("left: {x}px; top: {y}px;")
@@ -95,9 +97,7 @@ pub fn WindowsWidgetPage() -> impl IntoView {
                                 format!("left: {}px; top: {}px;", x + 72, y)
                             }
                         >
-                            <div class="rounded-[22px] border border-custom-ring bg-custom-subtle-background p-4 shadow-[0_16px_35px_rgba(0,0,0,0.16)] animate-[fadeIn_160ms_ease-out]">
-                                <PatientListCard/>
-                            </div>
+                            <PatientListCard/>
                         </div>
                     }.into_any()
                 } else {
@@ -113,8 +113,10 @@ fn SyncMedTile(
     #[prop(into)] badge_count: Signal<i64>,
 ) -> impl IntoView {
     view! {
-        <div class="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-custom-ring/70 bg-custom-background/90 backdrop-blur">
-            <div class="h-8 w-8 rounded-lg bg-custom-primary/85"></div>
+        <div class="relative flex h-12 w-12 items-center justify-center rounded-2xl border 
+        border-white/30 bg-custom-background/18 backdrop-blur-lg 
+        backdrop-saturate-150 backdrop-contrast-125">
+            <img src="/logo.svg" alt="SyncMed logo" class="h-10 w-10 object-contain"/>
             {move || {
                 let value = badge_count.get();
                 (value > 0).then(move || {
@@ -134,10 +136,16 @@ fn PatientListCard() -> impl IntoView {
     let overview = Resource::new(|| (), |_| get_widget_patient_overview());
 
     view! {
-        <div class="w-[230px] rounded-2xl border-2 border-custom-ring bg-custom-subtle-background p-3">
+        <div class="w-[230px] rounded-[22px] border border-white/10 bg-custom-subtle-background/8
+          backdrop-blur-xs p-4 shadow-[0_16px_35px_rgba(0,0,0,0.16)] animate-[fadeIn_160ms_ease-out]">
             <div class="mb-3 grid grid-cols-2 gap-2 text-center">
-                <div class="rounded-xl border border-custom-ring bg-custom-background py-2">
-                    <p class="text-xs text-custom-card-foreground">"New Entry"</p>
+                <div class="rounded-xl border-2
+                border-white/40 
+                shadow-[0_20px_50px_rgba(0,0,0,0.3)]
+                ring-1 ring-white/10
+                bg-custom-background/30 backdrop-blur-lg backdrop-brightness-125 backdrop-contrast-125 
+                py-2">
+                    <p class="text-xs font-semibold text-custom-card-foreground">"New Entry"</p>
                     <p class="text-lg font-bold text-custom-foreground">
                         {move || {
                             overview
@@ -148,8 +156,11 @@ fn PatientListCard() -> impl IntoView {
                         }}
                     </p>
                 </div>
-                <div class="rounded-xl border border-custom-ring bg-custom-background py-2">
-                    <p class="text-xs text-custom-card-foreground">"Total Entry"</p>
+                <div class="rounded-xl border-2 border-white/40 
+                shadow-[0_20px_50px_rgba(0,0,0,0.3)]
+                ring-1 ring-white/10
+                bg-custom-background/30 backdrop-blur-lg backdrop-brightness-125 backdrop-contrast-125 py-2">
+                    <p class="text-xs font-semibold text-custom-card-foreground">"Total Entry"</p>
                     <p class="text-lg font-bold text-custom-foreground">
                         {move || {
                             overview
