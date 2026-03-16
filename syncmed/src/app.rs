@@ -10,6 +10,7 @@ use crate::pages::app::{
     AppChatAccessibilityPage, AppChatConfirmPage, AppChatDefaultPage, AppConfirmIdentityPage,
     AppConfirmSuccessPage, AppInputPage, AppLoginPage,
 };
+use crate::structure::chat::{CaseChatMessageDraft, CaseMedicationPayload};
 use crate::pages::windows::{
     WindowsBrowsePatientEntryPage, WindowsCardDetailsPage, WindowsGenerateUrlPage, WindowsLayout,
     WindowsLoginPage, WindowsWidgetPage,
@@ -38,6 +39,8 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
 #[component]
 pub fn App() -> impl IntoView {
     provide_meta_context();
+    provide_context(RwSignal::new(Vec::<CaseMedicationPayload>::new()));
+    provide_context(RwSignal::new(Vec::<CaseChatMessageDraft>::new()));
 
     view! {
         <Router>

@@ -18,6 +18,13 @@ pub fn AppConfirmSuccessPage() -> impl IntoView {
             .get("patient-id")
             .unwrap_or_else(String::new)
     });
+    let duration_text = Resource::new(
+        move || patient_key.get(),
+        |key| async move {
+            let count = get_chat_message_count(key).await?;
+            Ok::<_, ServerFnError>(format_duration_from_count(count))
+        },
+    );
 
     view! {
         <Title text="App Confirm Success - SyncMed"/>
@@ -71,7 +78,15 @@ pub fn AppConfirmSuccessPage() -> impl IntoView {
                     <div class="flex flex-col items-center gap-8 text-center">
                         <div class="space-y-3">
                             <p class="text-3xl font-light text-custom-primary">"The report has saved"</p>
-                            <p class="text-6xl font-bold text-custom-foreground">"30 min"</p>
+                            <p class="text-6xl font-bold text-custom-foreground">
+                                <Suspense fallback=move || "1min".to_string()>
+                                    {move || match duration_text.get() {
+                                        Some(Ok(text)) => text,
+                                        Some(Err(_)) => "1min".to_string(),
+                                        None => "1min".to_string(),
+                                    }}
+                                </Suspense>
+                            </p>
                             <p class="text-3xl font-light text-custom-primary">"for the diagnose process"</p>
                         </div>
 
@@ -84,5 +99,67 @@ pub fn AppConfirmSuccessPage() -> impl IntoView {
                 "© 2026 SyncMed. All rights reserved."
             </footer>
         </main>
+    }
+}
+
+fn format_duration_from_count(chat_count: i64) -> String {
+    let total_seconds = chat_count.max(0) * 30;
+    let mut total_minutes = (total_seconds + 59) / 60; // round up to minute
+    if total_minutes == 0 {
+        total_minutes = 1; // keep visible non-zero duration
+    }
+    if total_minutes < 60 {
+        format!("{total_minutes}min")
+    } else {
+        let hours = total_minutes / 60;
+        let minutes = total_minutes % 60;
+        format!("{hours}h{minutes}min")
+    }
+}
+
+#[server(GetChatMessageCount, "/api")]
+pub async fn get_chat_message_count(patient_key: String) -> Result<i64, ServerFnError> {
+    #[cfg(feature = "ssr")]
+    {
+        use crate::db::{DbPool, schema::{case_chat_messages::dsl as chat_dsl, patient::dsl as patient_dsl}};
+        use axum::Extension;
+        use diesel::prelude::*;
+        use diesel_async::RunQueryDsl;
+        use leptos_axum::extract;
+
+        if patient_key.trim().is_empty() {
+            return Ok(0);
+        }
+
+        let Extension(pool) = extract::<Extension<DbPool>>()
+            .await
+            .map_err(|e| ServerFnError::new(format!("pool extract failed: {e}")))?;
+        let mut conn = pool
+            .get()
+            .await
+            .map_err(|e| ServerFnError::new(format!("pool get failed: {e}")))?;
+
+        let patient_id: i32 = patient_dsl::patient
+            .filter(patient_dsl::patient_key.eq(&patient_key))
+            .select(patient_dsl::id)
+            .first(&mut conn)
+            .await
+            .map_err(|e| ServerFnError::new(format!("patient query failed: {e}")))?;
+
+        let count: i64 = chat_dsl::case_chat_messages
+            .filter(chat_dsl::patient_id.eq(patient_id))
+            .count()
+            .get_result(&mut conn)
+            .await
+            .map_err(|e| ServerFnError::new(format!("chat count query failed: {e}")))?;
+
+        Ok(count)
+    }
+    #[cfg(not(feature = "ssr"))]
+    {
+        let _ = patient_key;
+        Err(ServerFnError::new(
+            "get_chat_message_count is only available on the server".to_string(),
+        ))
     }
 }

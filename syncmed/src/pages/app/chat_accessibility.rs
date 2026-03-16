@@ -1,9 +1,13 @@
 use leptos::prelude::*;
 use leptos_meta::Title;
 use leptos_router::{components::A, hooks::use_query_map};
-use crate::structure::chat::CaseChatMessageDraft;
+use crate::structure::chat::{CaseChatMessageDraft, CaseMedicationPayload};
 #[cfg(target_arch = "wasm32")]
 use crate::structure::chat::{ChatbotRequest, ChatbotResponse};
+#[cfg(target_arch = "wasm32")]
+use crate::services::chat::{bootstrap_chat_state, merge_case_medications};
+#[cfg(target_arch = "wasm32")]
+use crate::services::chat::{save_chat_history, save_local_medications};
 
 const MEDICINE_IMAGE_URL: &str =
     "https://www.figma.com/api/mcp/asset/592defbd-fa4b-49d4-b550-c6a4ee112841";
@@ -18,10 +22,21 @@ pub fn AppChatAccessibilityPage() -> impl IntoView {
             .unwrap_or_else(String::new)
     });
     let (draft, set_draft) = signal(String::new());
-    let (messages, set_messages) = signal(Vec::<CaseChatMessageDraft>::new());
+    let messages_store = use_context::<RwSignal<Vec<CaseChatMessageDraft>>>()
+        .unwrap_or_else(|| RwSignal::new(Vec::<CaseChatMessageDraft>::new()));
+    let medications_store = use_context::<RwSignal<Vec<CaseMedicationPayload>>>()
+        .unwrap_or_else(|| RwSignal::new(Vec::<CaseMedicationPayload>::new()));
     let patient_key_for_send = patient_key.clone();
     #[cfg(not(target_arch = "wasm32"))]
-    let _ = &patient_key_for_send;
+    let _ = (&patient_key_for_send, &medications_store, &messages_store);
+    #[cfg(target_arch = "wasm32")]
+    {
+        bootstrap_chat_state(
+            patient_key_for_send.get_untracked(),
+            messages_store,
+            medications_store,
+        );
+    }
 
     view! {
         <Title text="App Chat Accessibility - SyncMed"/>
@@ -64,7 +79,7 @@ pub fn AppChatAccessibilityPage() -> impl IntoView {
                         <div class="rounded-lg bg-custom-background lg:grid lg:min-h-[620px] lg:grid-cols-2 lg:gap-6">
                             <div class="space-y-1 p-1 md:space-y-2 md:p-2 lg:space-y-2 lg:p-3">
                                 {move || {
-                                    let items = messages.get();
+                                    let items = messages_store.get();
                                     if items.is_empty() {
                                         view! { <p class="text-sm text-custom-muted-foreground">"No chat messages yet."</p> }.into_any()
                                     } else {
@@ -122,7 +137,7 @@ pub fn AppChatAccessibilityPage() -> impl IntoView {
                                                 return;
                                             }
                                             set_draft.set(String::new());
-                                            set_messages.update(|items| {
+                                            messages_store.update(|items| {
                                                 items.push(CaseChatMessageDraft {
                                                     id: None,
                                                     patient_id: None,
@@ -132,8 +147,10 @@ pub fn AppChatAccessibilityPage() -> impl IntoView {
                                                 });
                                             });
                                             #[cfg(target_arch = "wasm32")]
+                                            save_chat_history(&patient_key_for_send.get_untracked(), &messages_store.get_untracked());
+                                            #[cfg(target_arch = "wasm32")]
                                             {
-                                                let set_messages = set_messages;
+                                                let messages_store = messages_store;
                                                 let key = patient_key_for_send.get_untracked();
                                                 leptos::task::spawn_local(async move {
                                                     let payload = ChatbotRequest {
@@ -141,11 +158,11 @@ pub fn AppChatAccessibilityPage() -> impl IntoView {
                                                         patient_id: if key.trim().is_empty() {
                                                             None
                                                         } else {
-                                                            Some(key)
+                                                            Some(key.clone())
                                                         },
                                                     };
                                                     let request = gloo_net::http::Request::post(
-                                                        "http://chatbot:3003/api/chat",
+                                                        "http://localhost:3003/api/chat",
                                                     )
                                                     .header("content-type", "application/json")
                                                     .json(&payload);
@@ -158,7 +175,7 @@ pub fn AppChatAccessibilityPage() -> impl IntoView {
                                                                     .await
                                                                 {
                                                                     Ok(data) => {
-                                                                        set_messages.update(
+                                                                        messages_store.update(
                                                                             |items| {
                                                                                 items.push(
                                                                                     CaseChatMessageDraft {
@@ -172,9 +189,25 @@ pub fn AppChatAccessibilityPage() -> impl IntoView {
                                                                                 );
                                                                             },
                                                                         );
+                                                                        save_chat_history(&key, &messages_store.get_untracked());
+                                                                        if let Some(incoming) =
+                                                                            data.medications
+                                                                        {
+                                                                            medications_store.update(
+                                                                                |local| {
+                                                                                    merge_case_medications(
+                                                                                        local, incoming,
+                                                                                    )
+                                                                                },
+                                                                            );
+                                                                            save_local_medications(
+                                                                                &key,
+                                                                                &medications_store.get_untracked(),
+                                                                            );
+                                                                        }
                                                                     }
                                                                     Err(err) => {
-                                                                        set_messages.update(
+                                                                        messages_store.update(
                                                                             |items| {
                                                                                 items.push(
                                                                                     CaseChatMessageDraft {
@@ -190,11 +223,12 @@ pub fn AppChatAccessibilityPage() -> impl IntoView {
                                                                                 );
                                                                             },
                                                                         );
+                                                                        save_chat_history(&key, &messages_store.get_untracked());
                                                                     }
                                                                 }
                                                             }
                                                             Err(err) => {
-                                                                set_messages.update(|items| {
+                                                                messages_store.update(|items| {
                                                                     items.push(
                                                                         CaseChatMessageDraft {
                                                                             id: None,
@@ -209,10 +243,11 @@ pub fn AppChatAccessibilityPage() -> impl IntoView {
                                                                         },
                                                                     );
                                                                 });
+                                                                save_chat_history(&key, &messages_store.get_untracked());
                                                             }
                                                         },
                                                         Err(err) => {
-                                                            set_messages.update(|items| {
+                                                            messages_store.update(|items| {
                                                                 items.push(CaseChatMessageDraft {
                                                                     id: None,
                                                                     patient_id: None,
@@ -223,6 +258,7 @@ pub fn AppChatAccessibilityPage() -> impl IntoView {
                                                                     created_at: "Now".to_string(),
                                                                 });
                                                             });
+                                                            save_chat_history(&key, &messages_store.get_untracked());
                                                         }
                                                     }
                                                 });

@@ -2,9 +2,13 @@ use leptos::prelude::*;
 use leptos_meta::Title;
 use leptos_router::{components::A, hooks::use_query_map};
 use serde::{Deserialize, Serialize};
-use crate::structure::chat::CaseChatMessageDraft;
+use crate::structure::chat::{CaseChatMessageDraft, CaseMedicationPayload};
 #[cfg(target_arch = "wasm32")]
 use crate::structure::chat::{ChatbotRequest, ChatbotResponse};
+#[cfg(target_arch = "wasm32")]
+use crate::services::chat::{bootstrap_chat_state, merge_case_medications};
+#[cfg(target_arch = "wasm32")]
+use crate::services::chat::{save_chat_history, save_local_medications};
 
 const LOGO_GROUP_URL: &str =
     "https://www.figma.com/api/mcp/asset/a5f3a6b1-a02e-4798-b13a-32da13edf8de";
@@ -22,6 +26,8 @@ pub fn AppChatDefaultPage() -> impl IntoView {
             .get("patient-id")
             .unwrap_or_else(String::new)
     });
+    let medications_store = use_context::<RwSignal<Vec<CaseMedicationPayload>>>()
+        .unwrap_or_else(|| RwSignal::new(Vec::<CaseMedicationPayload>::new()));
     view! {
         <Title text="App Chat Default - SyncMed"/>
         <main class="min-h-screen bg-custom-subtle-background text-custom-foreground">
@@ -47,8 +53,8 @@ pub fn AppChatDefaultPage() -> impl IntoView {
 
             <section class="mx-auto w-full max-w-[1280px] px-4 py-6 md:px-6 md:py-8">
                 <div class="grid gap-4 lg:grid-cols-[2fr_1fr]">
-                    <ChatPanel patient_key=patient_key.get_untracked()/>
-                    <MedicationPanel patient_key=patient_key.get_untracked()/>
+                    <ChatPanel patient_key=patient_key.get_untracked() medications_store=medications_store/>
+                    <MedicationPanel patient_key=patient_key.get_untracked() medications_store=medications_store/>
                 </div>
             </section>
 
@@ -62,13 +68,23 @@ pub fn AppChatDefaultPage() -> impl IntoView {
 #[component]
 fn ChatPanel(
     patient_key: String,
+    medications_store: RwSignal<Vec<CaseMedicationPayload>>,
 ) -> impl IntoView {
     let (draft, set_draft) = signal(String::new());
-    let (messages, set_messages) = signal(Vec::<CaseChatMessageDraft>::new());
+    let messages_store = use_context::<RwSignal<Vec<CaseChatMessageDraft>>>()
+        .unwrap_or_else(|| RwSignal::new(Vec::<CaseChatMessageDraft>::new()));
     let patient_key_for_links = patient_key.clone();
     let patient_key_for_send = patient_key.clone();
     #[cfg(not(target_arch = "wasm32"))]
-    let _ = &patient_key_for_send;
+    let _ = (&patient_key_for_send, &medications_store, &messages_store);
+    #[cfg(target_arch = "wasm32")]
+    {
+        bootstrap_chat_state(
+            patient_key_for_send.clone(),
+            messages_store,
+            medications_store,
+        );
+    }
 
     view! {
         <div class="card border border-custom-border bg-custom-background shadow-sm">
@@ -91,7 +107,7 @@ fn ChatPanel(
 
             <div class="space-y-4 p-4">
                 {move || {
-                    let items = messages.get();
+                    let items = messages_store.get();
                     if items.is_empty() {
                         view! { <p class="text-sm text-custom-muted-foreground">"No chat messages yet."</p> }.into_any()
                     } else {
@@ -128,7 +144,7 @@ fn ChatPanel(
                             return;
                         }
                         set_draft.set(String::new());
-                        set_messages.update(|items| {
+                        messages_store.update(|items| {
                             items.push(CaseChatMessageDraft {
                                 id: None,
                                 patient_id: None,
@@ -137,15 +153,17 @@ fn ChatPanel(
                                 created_at: "Now".to_string(),
                             });
                         });
+                        #[cfg(target_arch = "wasm32")]
+                        save_chat_history(&patient_key_for_send, &messages_store.get_untracked());
 
                         #[cfg(target_arch = "wasm32")]
                         {
-                            let set_messages = set_messages;
+                            let messages_store = messages_store;
                             let key = patient_key_for_send.clone();
                             leptos::task::spawn_local(async move {
                                 let payload = ChatbotRequest {
                                     message: text,
-                                    patient_id: if key.trim().is_empty() { None } else { Some(key) },
+                                    patient_id: if key.trim().is_empty() { None } else { Some(key.clone()) },
                                 };
                                 let request = gloo_net::http::Request::post("http://localhost:3003/api/chat")
                                     .header("content-type", "application/json")
@@ -155,18 +173,25 @@ fn ChatPanel(
                                     Ok(req) => match req.send().await {
                                         Ok(resp) => match resp.json::<ChatbotResponse>().await {
                                             Ok(data) => {
-                                                set_messages.update(|items| {
+                                                messages_store.update(|items| {
                                                     items.push(CaseChatMessageDraft {
                                                         id: None,
                                                         patient_id: None,
                                                         sender_type: "bot".to_string(),
-                                                        content_text: data.reply,
-                                                        created_at: data.timestamp,
+                                                        content_text: data.reply.clone(),
+                                                        created_at: data.timestamp.clone(),
                                                     });
                                                 });
+                                                save_chat_history(&key, &messages_store.get_untracked());
+                                                if let Some(incoming) = data.medications {
+                                                    medications_store.update(|local| {
+                                                        merge_case_medications(local, incoming)
+                                                    });
+                                                    save_local_medications(&key, &medications_store.get_untracked());
+                                                }
                                             }
                                             Err(err) => {
-                                                set_messages.update(|items| {
+                                                messages_store.update(|items| {
                                                     items.push(CaseChatMessageDraft {
                                                         id: None,
                                                         patient_id: None,
@@ -175,10 +200,11 @@ fn ChatPanel(
                                                         created_at: "Now".to_string(),
                                                     });
                                                 });
+                                                save_chat_history(&key, &messages_store.get_untracked());
                                             }
                                         },
                                         Err(err) => {
-                                            set_messages.update(|items| {
+                                            messages_store.update(|items| {
                                                 items.push(CaseChatMessageDraft {
                                                     id: None,
                                                     patient_id: None,
@@ -187,10 +213,11 @@ fn ChatPanel(
                                                     created_at: "Now".to_string(),
                                                 });
                                             });
+                                            save_chat_history(&key, &messages_store.get_untracked());
                                         }
                                     },
                                     Err(err) => {
-                                        set_messages.update(|items| {
+                                        messages_store.update(|items| {
                                             items.push(CaseChatMessageDraft {
                                                 id: None,
                                                 patient_id: None,
@@ -199,6 +226,7 @@ fn ChatPanel(
                                                 created_at: "Now".to_string(),
                                             });
                                         });
+                                        save_chat_history(&key, &messages_store.get_untracked());
                                     }
                                 }
                             });
@@ -367,6 +395,7 @@ pub async fn add_patient_chat_message(
 #[component]
 fn MedicationPanel(
     patient_key: String,
+    medications_store: RwSignal<Vec<CaseMedicationPayload>>,
 ) -> impl IntoView {
     view! {
         <div class="card border border-custom-border bg-custom-background shadow-sm">
@@ -376,7 +405,21 @@ fn MedicationPanel(
 
             <div class="p-4">
                 <div class="rounded-lg border-2 border-dashed border-custom-input bg-custom-card p-2">
-                    <MedicineCard/>
+                    {move || {
+                        let items = medications_store.get();
+                        if items.is_empty() {
+                            view! { <p class="p-3 text-sm text-custom-muted-foreground">"No matched medications yet."</p> }.into_any()
+                        } else {
+                            view! {
+                                <div class="space-y-3">
+                                    {items
+                                        .into_iter()
+                                        .map(|med| view! { <MedicineCard medication=med/> })
+                                        .collect_view()}
+                                </div>
+                            }.into_any()
+                        }
+                    }}
                 </div>
             </div>
 
@@ -397,16 +440,26 @@ fn MedicationPanel(
 }
 
 #[component]
-fn MedicineCard() -> impl IntoView {
+fn MedicineCard(medication: CaseMedicationPayload) -> impl IntoView {
+    let taking_period = format!(
+        "{} -> {}",
+        medication.start_date.as_deref().unwrap_or("-"),
+        medication.end_date.as_deref().unwrap_or("ongoing"),
+    );
+    let comments = medication
+        .notes
+        .clone()
+        .unwrap_or_else(|| "No comments".to_string());
+
     view! {
         <div class="card border border-custom-border bg-custom-card">
             <div class="card-body gap-3 p-4">
                 <div class="flex items-start gap-3">
                     <img src=MEDICINE_IMAGE_URL alt="Medicine" class="h-[70px] w-[70px] rounded bg-custom-background object-cover p-2"/>
                     <div class="flex-1">
-                        <h4 class="text-lg font-bold text-custom-foreground">"medicine name"</h4>
-                        <p class="text-base text-custom-primary">"company name"</p>
-                        <p class="text-sm text-custom-primary">"Function : Fever reducer, pain reliever"</p>
+                        <h4 class="text-lg font-bold text-custom-foreground">{medication.med_name.clone()}</h4>
+                        <p class="text-base text-custom-primary">"Dose: "{medication.dose.clone()}</p>
+                        <p class="text-sm text-custom-primary">"Frequency: "{medication.frequency.clone()}</p>
                     </div>
                     <span class="badge badge-primary">"Generated"</span>
                 </div>
@@ -414,18 +467,18 @@ fn MedicineCard() -> impl IntoView {
                 <div class="grid grid-cols-2 gap-3 text-sm">
                     <div>
                         <p class="font-semibold text-custom-foreground">"Taking period"</p>
-                        <p class="text-custom-foreground/80">"2025 Oct. -> 2026 Jan. ==> 3 month"</p>
+                        <p class="text-custom-foreground/80">{taking_period}</p>
                     </div>
                     <div>
-                        <p class="font-semibold text-custom-foreground">"frequency"</p>
-                        <p class="text-custom-foreground/80">"1 pill per day"</p>
+                        <p class="font-semibold text-custom-foreground">"patient_id"</p>
+                        <p class="text-custom-foreground/80">{medication.patient_id}</p>
                     </div>
                 </div>
 
                 <div>
                     <p class="mb-1 text-sm font-semibold text-custom-foreground">"Comments"</p>
                     <div class="rounded border-2 border-custom-ring bg-custom-background p-2 text-sm text-custom-foreground">
-                        "Prescription from Doctor James"
+                        {comments}
                     </div>
                 </div>
             </div>

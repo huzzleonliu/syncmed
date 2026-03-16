@@ -26,6 +26,7 @@ tracing = { version = "0.1.40", optional = true }
 http = "1.1"
 rand = { version = "0.10.0", optional = true }
 serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
 
 dotenvy = { version = "0.15", optional = true }
 diesel = { version = "2.2.0", features = ["postgres", "r2d2", "chrono"], optional = true }
