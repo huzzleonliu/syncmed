@@ -6,3 +6,9 @@ node_modules/
 
 **/.env
 .env
+
+
+
+! ./syncmed/target/release/syncmed
+! ./syncmed/target/site
+! ./syncmed/Cargo.toml
