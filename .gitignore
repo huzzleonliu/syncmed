@@ -1,7 +1,6 @@
 postgresql/
 
 # 用于生成了特定名字的项目的忽略文件
-target/
 node_modules/
 
 **/.env
@@ -9,6 +8,11 @@ node_modules/
 
 
 
-! ./syncmed/target/release/syncmed
-! ./syncmed/target/site
-! ./syncmed/Cargo.toml
+target/
+syncmed/target/**
+!syncmed/target/
+!syncmed/target/release/
+!syncmed/target/release/syncmed
+!syncmed/target/site/
+!syncmed/target/site/**
+!syncmed/Cargo.toml
